@@ -1,0 +1,77 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Development Database
+  postgres-dev:
+    image: postgres:15-alpine
+    container_name: omnitrackr-db-dev
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: omnitrackr_dev
+      POSTGRES_USER: omnitrackr_user
+      POSTGRES_PASSWORD: omnitrackr_password_dev
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-dev-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U omnitrackr_user -d omnitrackr_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - omnitrackr-network
+
+  # PostgreSQL Test Database
+  postgres-test:
+    image: postgres:15-alpine
+    container_name: omnitrackr-db-test
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_DB: omnitrackr_test
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: 93W4tQcwoKaKi9c4dWKh
+      PGDATA: /var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-test-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user -d omnitrackr_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - omnitrackr-network
+
+  # pgAdmin (Optional - Database Management UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: omnitrackr-pgadmin
+    restart: unless-stopped
+    ports:
+      - "5050:80"
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@omnitrackr.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    networks:
+      - omnitrackr-network
+    depends_on:
+      - postgres-dev
+      - postgres-test
+
+volumes:
+  postgres-dev-data:
+    driver: local
+  postgres-test-data:
+    driver: local
+  pgadmin-data:
+    driver: local
+
+networks:
+  omnitrackr-network:
+    driver: bridge

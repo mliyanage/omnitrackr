@@ -1,0 +1,54 @@
+{
+  "name": "omnitrackr",
+  "version": "1.0.0",
+  "description": "OmniTrackr File Exchange Platform - Multi-tenant file source monitoring and tracking system",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "setup": "./scripts/setup-dev-env.sh",
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "test": "turbo run test",
+    "lint": "turbo run lint",
+    "clean": "turbo run clean",
+    "dev:api": "npm run dev --workspace=packages/api",
+    "dev:worker": "npm run dev --workspace=packages/worker",
+    "dev:notification": "npm run dev --workspace=packages/notification-manager",
+    "build:all": "npm run build",
+    "build:shared": "npm run build --workspace=packages/shared",
+    "build:api": "npm run build --workspace=packages/api",
+    "build:worker": "npm run build --workspace=packages/worker",
+    "build:notification": "npm run build --workspace=packages/notification-manager",
+    "docker:build": "npm run docker:build:api && npm run docker:build:worker && npm run docker:build:notification",
+    "docker:build:api": "docker build -t omnitrackr/api:latest -f packages/api/Dockerfile packages/api",
+    "docker:build:worker": "docker build -t omnitrackr/worker:latest -f packages/worker/Dockerfile packages/worker",
+    "docker:build:notification": "docker build -t omnitrackr/notification-manager:latest -f packages/notification-manager/Dockerfile packages/notification-manager",
+    "db:migrate": "NODE_ENV=${NODE_ENV:-development} npm run migrate --workspace=packages/api",
+    "db:migrate:make": "npm run migrate:make --workspace=packages/api",
+    "db:rollback": "NODE_ENV=${NODE_ENV:-development} npm run migrate:rollback --workspace=packages/api",
+    "db:migrate:dev": "NODE_ENV=development npm run migrate --workspace=packages/api",
+    "db:migrate:test": "NODE_ENV=test npm run migrate --workspace=packages/api"
+  },
+  "keywords": [
+    "file-monitoring",
+    "s3",
+    "sftp",
+    "ftp",
+    "file-tracking",
+    "sla-monitoring",
+    "notifications"
+  ],
+  "author": "OmniTrackr Team",
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "turbo": "^1.11.0",
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  }
+}

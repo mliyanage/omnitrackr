@@ -1,0 +1,360 @@
+{
+  "info": {
+    "name": "OmniTrackr API",
+    "description": "Complete API collection for OmniTrackr - File Exchange Monitoring Platform",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "health"]
+            },
+            "description": "Check if the API is running and healthy"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "File Sources",
+      "item": [
+        {
+          "name": "Get All File Sources",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default: 1)"
+                },
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Items per page (default: 20, max: 100)"
+                },
+                {
+                  "key": "department",
+                  "value": "Finance",
+                  "description": "Filter by department (optional)",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Get all file sources with pagination and optional department filter"
+          },
+          "response": []
+        },
+        {
+          "name": "Get File Source by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1"]
+            },
+            "description": "Get a single file source by ID"
+          },
+          "response": []
+        },
+        {
+          "name": "Get File Source Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1/statistics",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1", "statistics"]
+            },
+            "description": "Get statistics for a specific file source (file counts, success rate, etc.)"
+          },
+          "response": []
+        },
+        {
+          "name": "Test S3 Connection",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"my-test-bucket\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3/test-connection",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3", "test-connection"]
+            },
+            "description": "Test S3 connection before creating a file source. Validates credentials and bucket access."
+          },
+          "response": []
+        },
+        {
+          "name": "Create S3 File Source",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Customer Data Bucket\",\n  \"department\": \"Finance\",\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"customer-data-prod\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\",\n  \"fileNamePattern\": \"customer_*.csv\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"09:00\",\n  \"timezone\": \"America/New_York\",\n  \"slaThreshold\": 120,\n  \"direction\": \"inward\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3"]
+            },
+            "description": "Create a new S3 file source. Tests connection before saving."
+          },
+          "response": []
+        },
+        {
+          "name": "Update File Source",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Customer Data Bucket\",\n  \"slaThreshold\": 180,\n  \"schedule\": \"10:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1"]
+            },
+            "description": "Update file source fields (partial update). At least one field required."
+          },
+          "response": []
+        },
+        {
+          "name": "Enable File Source",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1", "toggle"]
+            },
+            "description": "Enable a file source (set enabled = true)"
+          },
+          "response": []
+        },
+        {
+          "name": "Disable File Source",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1", "toggle"]
+            },
+            "description": "Disable a file source (set enabled = false)"
+          },
+          "response": []
+        },
+        {
+          "name": "Delete File Source",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "1"]
+            },
+            "description": "Delete a file source (cascades to related inward files)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Examples",
+      "item": [
+        {
+          "name": "Create S3 Source - Sales Reports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Sales Reports - Daily\",\n  \"department\": \"Sales\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"sales-reports-prod\",\n  \"bucketRegion\": \"us-west-2\",\n  \"monitorPath\": \"/reports/daily/\",\n  \"fileNamePattern\": \"sales_report_*.xlsx\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"08:00\",\n  \"timezone\": \"America/Los_Angeles\",\n  \"slaThreshold\": 60,\n  \"direction\": \"inward\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3"]
+            },
+            "description": "Example: Daily sales reports arriving every morning at 8 AM PST, 1-hour SLA"
+          },
+          "response": []
+        },
+        {
+          "name": "Create S3 Source - Partner Data Feed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Partner XYZ Data Feed\",\n  \"department\": \"Operations\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"partner-integration\",\n  \"bucketRegion\": \"eu-west-1\",\n  \"monitorPath\": \"/partner-xyz/incoming/\",\n  \"fileNamePattern\": \".*\\\\.json$\",\n  \"matchRule\": \"regex\",\n  \"schedule\": \"00:00\",\n  \"timezone\": \"UTC\",\n  \"slaThreshold\": 1440,\n  \"direction\": \"inward\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3"]
+            },
+            "description": "Example: Partner data feed, JSON files, daily at midnight UTC, 24-hour SLA, regex pattern matching"
+          },
+          "response": []
+        },
+        {
+          "name": "Create S3 Source - Outbound Reports",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Customer Reports Outbound\",\n  \"department\": \"Customer Success\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"customer-reports-outbound\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/delivered/\",\n  \"fileNamePattern\": \"report_*.pdf\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"17:00\",\n  \"timezone\": \"America/New_York\",\n  \"slaThreshold\": 30,\n  \"direction\": \"outward\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3"]
+            },
+            "description": "Example: Outbound customer reports that WE deliver, monitoring to ensure delivery, 30-minute SLA"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Examples",
+      "item": [
+        {
+          "name": "Validation Error - Missing Required Fields",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/s3",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "s3"]
+            },
+            "description": "Example of validation error when required fields are missing"
+          },
+          "response": []
+        },
+        {
+          "name": "Not Found Error",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/file-sources/99999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "file-sources", "99999"]
+            },
+            "description": "Example of 404 Not Found error for non-existent resource"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Route",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/invalid-route",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "invalid-route"]
+            },
+            "description": "Example of 404 error for invalid route"
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
