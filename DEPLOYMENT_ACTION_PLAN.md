@@ -1,15 +1,17 @@
 # OmniTrackr Deployment Action Plan
 
-Step-by-step plan to deploy to AWS with GitHub Actions automation.
+Step-by-step plan to deploy to GCP with GitHub Actions automation.
 
 ---
 
 ## 📊 Summary of Recommendation
 
-**Selected Provider:** **AWS**
-- **Staging Cost:** ~$75-100/month
-- **Production Cost:** ~$300-500/month (start), scales to $1,000-2,000/month
+**Selected Provider:** **GCP (Google Cloud Platform)**
+- **Staging Cost:** ~$50-80/month (40% cheaper than AWS)
+- **Production Cost:** ~$300-420/month (start), scales to $600-800/month
+- **Secrets Cost:** $0.06/secret (85% cheaper than AWS)
 - **Timeline:** 1-2 weeks to full production deployment
+- **Key Advantage:** Cloud Run serverless containers - simple, fast, cost-effective
 
 ---
 
@@ -72,75 +74,104 @@ Via GitHub UI:
 
 ---
 
-## 🏗️ Phase 2: AWS Infrastructure Setup (Week 1)
+## 🏗️ Phase 2: GCP Infrastructure Setup (Week 1)
 
-### **Day 1: AWS Account & IAM**
+### **Day 1: GCP Account & Project Setup**
 
-1. **Create/Access AWS Account**
-   - Sign up at https://aws.amazon.com
-   - Enable MFA on root account
+1. **Create/Access GCP Account**
+   - Sign up at https://console.cloud.google.com
+   - $300 free credits for new accounts (90 days)
+   - Enable billing account
    - Set up billing alerts
 
-2. **Create IAM Users**
-   ```
-   terraform-admin  → For infrastructure provisioning
-   github-actions   → For CI/CD deployments
-   developer        → For manual access
+2. **Create GCP Project**
+   ```bash
+   # Using gcloud CLI
+   gcloud projects create omnitrackr-prod --name="OmniTrackr Production"
+   gcloud projects create omnitrackr-staging --name="OmniTrackr Staging"
+
+   # Set default project
+   gcloud config set project omnitrackr-staging
    ```
 
-3. **Create IAM Policies** (see GITHUB_AND_CICD_SETUP.md)
+3. **Enable Required APIs**
+   ```bash
+   gcloud services enable \
+     run.googleapis.com \
+     sqladmin.googleapis.com \
+     secretmanager.googleapis.com \
+     cloudbuild.googleapis.com \
+     containerregistry.googleapis.com \
+     cloudscheduler.googleapis.com \
+     logging.googleapis.com \
+     monitoring.googleapis.com
+   ```
+
+4. **Create Service Accounts**
+   ```bash
+   # For GitHub Actions deployments
+   gcloud iam service-accounts create github-actions \
+     --display-name="GitHub Actions Deployment"
+
+   # For Cloud Run services
+   gcloud iam service-accounts create omnitrackr-api \
+     --display-name="OmniTrackr API Service"
+   ```
 
 ### **Day 2-3: Infrastructure as Code**
 
-**Option A: AWS CDK (Recommended)**
-
-```bash
-# Install AWS CDK
-npm install -g aws-cdk
-
-# Create infrastructure package
-mkdir -p infrastructure/cdk
-cd infrastructure/cdk
-cdk init app --language=typescript
-
-# Define stacks:
-# - NetworkStack (VPC, subnets)
-# - DatabaseStack (RDS)
-# - ComputeStack (ECS, ECR)
-# - MonitoringStack (CloudWatch)
-```
-
-**Option B: Terraform**
+**Option A: Terraform (Recommended for GCP)**
 
 ```bash
 # Create infrastructure
-mkdir -p infrastructure/terraform
-cd infrastructure/terraform
+mkdir -p infrastructure/terraform/staging
+mkdir -p infrastructure/terraform/production
+
+cd infrastructure/terraform/staging
 
 # Files to create:
-# - vpc.tf
-# - rds.tf
-# - ecs.tf
-# - ecr.tf
-# - secrets.tf
+# - main.tf (provider configuration)
+# - cloud_run.tf (API and Worker services)
+# - cloud_sql.tf (PostgreSQL database)
+# - secrets.tf (Secret Manager)
+# - iam.tf (Service accounts and permissions)
 # - variables.tf
+# - outputs.tf
+```
+
+**Option B: Manual Setup (Quick Start)**
+
+```bash
+# Create Cloud SQL instance (staging)
+gcloud sql instances create omnitrackr-staging-db \
+  --database-version=POSTGRES_15 \
+  --tier=db-f1-micro \
+  --region=us-central1
+
+# Create database
+gcloud sql databases create omnitrackr \
+  --instance=omnitrackr-staging-db
+
+# Store database credentials in Secret Manager
+echo -n "your-db-password" | gcloud secrets create db-password \
+  --data-file=- \
+  --replication-policy="automatic"
 ```
 
 **What to Provision:**
 
 **Staging:**
-- VPC with public/private subnets
-- RDS PostgreSQL (db.t3.micro)
-- ECS Cluster with Fargate
-- ECR repositories (api, worker)
-- Application Load Balancer
-- Secrets Manager setup
-- CloudWatch Logs
+- Cloud SQL PostgreSQL (db-f1-micro)
+- Secret Manager secrets (db credentials, JWT secret)
+- Cloud Run services (API, Worker)
+- Cloud Scheduler (for worker cron jobs)
+- Cloud Logging and Monitoring
 
 **Production** (same as staging but bigger):
-- RDS PostgreSQL (db.t3.medium, Multi-AZ)
-- ECS with auto-scaling
-- Production ALB with WAF
+- Cloud SQL PostgreSQL (db-n1-standard-1, High Availability)
+- Cloud Run with higher limits and min instances
+- Cloud Armor (WAF protection)
+- Additional monitoring and alerting
 
 ### **Day 4: Create Dockerfiles**
 
@@ -165,14 +196,19 @@ docker run -p 3000:3000 \
 ### **Day 5: Database Migration Strategy**
 
 ```bash
-# Create migration job in ECS
-# Task Definition: omnitrackr-migrate
+# Run migrations using Cloud Run Jobs
+gcloud run jobs create omnitrackr-migrate \
+  --image gcr.io/omnitrackr-staging/api:latest \
+  --command npm \
+  --args "run,migrate" \
+  --region us-central1 \
+  --set-env-vars DB_HOST=<cloud-sql-ip> \
+  --set-secrets DB_PASSWORD=db-password:latest
 
-# Run migrations before deployment
-aws ecs run-task \
-  --cluster omnitrackr-staging \
-  --task-definition omnitrackr-migrate \
-  --launch-type FARGATE
+# Execute migration job
+gcloud run jobs execute omnitrackr-migrate \
+  --region us-central1 \
+  --wait
 ```
 
 ---
@@ -196,15 +232,22 @@ mkdir -p .github/workflows
 ### **Day 7: Configure GitHub Secrets**
 
 ```bash
+# Create service account key for GitHub Actions
+gcloud iam service-accounts keys create github-actions-key.json \
+  --iam-account=github-actions@omnitrackr-staging.iam.gserviceaccount.com
+
 # Add secrets via GitHub CLI
-gh secret set AWS_ACCESS_KEY_ID
-gh secret set AWS_SECRET_ACCESS_KEY
-gh secret set AWS_REGION --body "us-east-1"
-gh secret set ECR_REGISTRY --body "123456789012.dkr.ecr.us-east-1.amazonaws.com"
+gh secret set GCP_PROJECT_ID --body "omnitrackr-staging"
+gh secret set GCP_SA_KEY < github-actions-key.json
+gh secret set GCP_REGION --body "us-central1"
 
 # Production secrets (separate)
-gh secret set AWS_ACCESS_KEY_ID_PROD
-gh secret set AWS_SECRET_ACCESS_KEY_PROD
+gh secret set GCP_PROJECT_ID_PROD --body "omnitrackr-prod"
+gh secret set GCP_SA_KEY_PROD < github-actions-prod-key.json
+
+# Database secrets (will be stored in GCP Secret Manager)
+# These are just for reference in workflows
+gh secret set DB_NAME --body "omnitrackr"
 ```
 
 ### **Day 8: First Deployment to Staging**
@@ -217,8 +260,18 @@ git push origin develop
 # Monitor deployment
 gh run watch
 
-# Verify
-curl https://staging.omnitrackr.com/api/health
+# Alternatively, monitor via gcloud
+gcloud run services describe omnitrackr-api \
+  --region us-central1 \
+  --platform managed
+
+# Verify deployment
+curl https://omnitrackr-api-staging-<hash>-uc.a.run.app/api/health
+
+# Set up custom domain (optional)
+gcloud run services update omnitrackr-api \
+  --region us-central1 \
+  --add-domain staging.omnitrackr.com
 ```
 
 ### **Day 9-10: Testing & Iteration**
@@ -318,46 +371,54 @@ curl https://api.omnitrackr.com/api/health
 ## 💰 Cost Breakdown
 
 ### **Month 1 (Development):**
-- AWS Free Tier eligible
-- Actual cost: ~$50-100/month
+- GCP Free Tier eligible ($300 credits)
+- Actual cost: ~$30-50/month (with free tier credits)
   - Staging only
   - Minimal traffic
-  - t3.micro instances
+  - db-f1-micro instance
+  - Cloud Run auto-scales to zero
 
 ### **Month 2-3 (Early Production):**
-- ~$300-400/month
-  - Staging: $75/month
-  - Production: $250/month
+- ~$350-430/month
+  - Staging: $50-80/month
+  - Production: $300-350/month
   - <100 customers
-  - Minimal auto-scaling
+  - Auto-scaling based on traffic
 
 ### **Month 6 (Growth):**
-- ~$800-1,000/month
+- ~$650-800/month
   - Scaling to handle 500-1,000 customers
   - Auto-scaling enabled
   - Read replicas added
+  - Secrets: $30-60/month (vs AWS $200-400/month)
 
 ### **Year 1:**
-- Total: ~$6,000-10,000
-- Per customer (1,000 customers): $6-10/month
-- With $50/customer pricing: 10-20% cost ratio ✅
+- Total: ~$5,000-7,000 (vs AWS $6,000-10,000)
+- Per customer (1,000 customers): $5-7/month
+- With $50/customer pricing: 10-14% cost ratio ✅
+- **Savings vs AWS**: $1,000-3,000/year
 
 ---
 
 ## 🎓 Learning Resources
 
-### **AWS:**
-- ECS Fargate: https://aws.amazon.com/fargate/
-- RDS PostgreSQL: https://aws.amazon.com/rds/postgresql/
-- Secrets Manager: https://aws.amazon.com/secrets-manager/
+### **GCP:**
+- Cloud Run: https://cloud.google.com/run/docs
+- Cloud SQL PostgreSQL: https://cloud.google.com/sql/docs/postgres
+- Secret Manager: https://cloud.google.com/secret-manager/docs
+- Cloud Build: https://cloud.google.com/build/docs
 
 ### **GitHub Actions:**
 - Workflow syntax: https://docs.github.com/actions/reference/workflow-syntax-for-github-actions
-- AWS Actions: https://github.com/aws-actions
+- GCP Actions: https://github.com/google-github-actions
 
 ### **Docker:**
 - Multi-stage builds: https://docs.docker.com/build/building/multi-stage/
 - Best practices: https://docs.docker.com/develop/dev-best-practices/
+
+### **GCP CLI (gcloud):**
+- Installation: https://cloud.google.com/sdk/docs/install
+- Quickstart: https://cloud.google.com/sdk/docs/quickstarts
 
 ---
 
@@ -365,17 +426,18 @@ curl https://api.omnitrackr.com/api/health
 
 ### **Week 1 Complete:**
 - [x] Code pushed to GitHub
-- [ ] AWS infrastructure provisioned
-- [ ] Staging environment deployed
+- [ ] GCP projects created (staging & production)
+- [ ] Cloud SQL PostgreSQL provisioned
+- [ ] Cloud Run services deployed (staging)
 - [ ] CI/CD pipeline working
 - [ ] Basic monitoring set up
 
 ### **Week 2 Complete:**
 - [ ] Production environment ready
-- [ ] Domain configured
-- [ ] SSL certificates in place
+- [ ] Custom domain configured
+- [ ] SSL certificates automatic (Cloud Run managed)
 - [ ] First production deployment successful
-- [ ] Team trained on process
+- [ ] Team trained on gcloud CLI and GCP Console
 
 ---
 
@@ -383,23 +445,36 @@ curl https://api.omnitrackr.com/api/health
 
 ### **If Deployment Fails:**
 
-1. **Automatic Rollback** (ECS Blue/Green)
-   - ECS automatically reverts to previous task definition
-   - No manual intervention needed
+1. **Automatic Rollback** (Cloud Run Traffic Splitting)
+   - Cloud Run keeps previous revision active
+   - Traffic automatically routes to healthy revision
+   - Zero downtime
 
-2. **Manual Rollback**
+2. **Manual Rollback via Traffic Split**
    ```bash
-   # Revert to previous image
-   aws ecs update-service \
-     --cluster omnitrackr-prod \
-     --service omnitrackr-api-prod \
-     --task-definition omnitrackr-api-prod:PREVIOUS_REVISION
+   # List revisions
+   gcloud run revisions list \
+     --service omnitrackr-api \
+     --region us-central1
+
+   # Route 100% traffic to previous revision
+   gcloud run services update-traffic omnitrackr-api \
+     --to-revisions=omnitrackr-api-previous=100 \
+     --region us-central1
    ```
 
-3. **Emergency Rollback**
+3. **Rollback Specific Revision**
+   ```bash
+   # Revert to specific revision
+   gcloud run services update omnitrackr-api \
+     --image gcr.io/omnitrackr-prod/api:PREVIOUS_TAG \
+     --region us-central1
+   ```
+
+4. **Emergency Rollback**
    - Revert git commit
-   - Force push to master (with caution)
-   - Triggers automatic redeployment
+   - Push to branch
+   - Triggers automatic redeployment with previous code
 
 ---
 
@@ -409,15 +484,24 @@ curl https://api.omnitrackr.com/api/health
 
 1. ✅ **Read this plan** - Make sure you understand each phase
 2. ✅ **Push to GitHub** - Execute Phase 1 today
-3. ✅ **Create AWS account** - Start Phase 2 this week
-4. ✅ **Set up infrastructure** - Use CDK or Terraform
-5. ✅ **Deploy to staging** - Test everything
-6. ✅ **Deploy to production** - Go live!
+3. ✅ **Create GCP account** - Get $300 free credits
+4. ✅ **Install gcloud CLI** - Required for GCP management
+5. ✅ **Set up infrastructure** - Use Terraform or manual setup
+6. ✅ **Deploy to staging** - Test with Cloud Run
+7. ✅ **Deploy to production** - Go live!
+
+**Why GCP over AWS?**
+- 40% cheaper ($50-80 vs $65-100 staging)
+- 85% cheaper secrets ($0.06 vs $0.40 per secret)
+- Cloud Run simplicity (no cluster management)
+- Fast deployments (seconds vs minutes)
+- Auto-scale to zero (save costs)
 
 **Questions or concerns?**
 - Review the detailed docs in `docs/`
-- AWS has excellent documentation
-- GitHub Actions has great examples
+- GCP has excellent documentation: https://cloud.google.com/docs
+- Cloud Run quickstart: https://cloud.google.com/run/docs/quickstarts
+- GitHub Actions has great GCP examples
 
 ---
 
@@ -425,9 +509,9 @@ curl https://api.omnitrackr.com/api/health
 
 | Phase | Status | Est. Time | Actual Time |
 |-------|--------|-----------|-------------|
-| 1. GitHub Setup | ⏳ Pending | 30 min | - |
-| 2. AWS Account | ⏳ Pending | 1 hour | - |
-| 3. Infrastructure | ⏳ Pending | 3 days | - |
+| 1. GitHub Setup | ✅ Complete | 30 min | - |
+| 2. GCP Account | ⏳ Pending | 1 hour | - |
+| 3. Infrastructure | ⏳ Pending | 2 days | - |
 | 4. Dockerfiles | ⏳ Pending | 1 day | - |
 | 5. CI/CD Setup | ⏳ Pending | 2 days | - |
 | 6. Staging Deploy | ⏳ Pending | 1 day | - |
@@ -435,6 +519,7 @@ curl https://api.omnitrackr.com/api/health
 | 8. Prod Deploy | ⏳ Pending | 1 day | - |
 
 **Target:** Production ready in 10-14 days
+**Note:** GCP Cloud Run is simpler than AWS ECS, potentially saving 1-2 days on infrastructure setup
 
 ---
 

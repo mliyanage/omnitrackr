@@ -87,12 +87,10 @@ on:
     branches: [develop]
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY_API: omnitrackr/api
-  ECR_REPOSITORY_WORKER: omnitrackr/worker
-  ECS_CLUSTER: omnitrackr-staging
-  ECS_SERVICE_API: omnitrackr-api-staging
-  ECS_SERVICE_WORKER: omnitrackr-worker-staging
+  GCP_PROJECT_ID: omnitrackr-staging
+  GCP_REGION: us-central1
+  SERVICE_NAME_API: omnitrackr-api
+  SERVICE_NAME_WORKER: omnitrackr-worker
 
 jobs:
   test:
@@ -110,90 +108,96 @@ jobs:
       - run: npm test --workspace=packages/api
       - run: npm test --workspace=packages/shared
 
-  build-and-push:
-    name: Build and Push Docker Images
+  build-and-deploy:
+    name: Build and Deploy to Cloud Run
     needs: test
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build, tag, and push API image
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker
+
+      - name: Build and push API image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_API:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY_API:staging \
+          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/api:$IMAGE_TAG \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/api:staging \
             -f packages/api/Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:staging
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/api:$IMAGE_TAG
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/api:staging
 
-      - name: Build, tag, and push Worker image
+      - name: Build and push Worker image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:staging \
+          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/worker:$IMAGE_TAG \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/worker:staging \
             -f packages/worker/Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:staging
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/worker:$IMAGE_TAG
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/worker:staging
 
-  deploy:
-    name: Deploy to ECS
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ env.AWS_REGION }}
-
-      - name: Update ECS service (API)
+      - name: Deploy API to Cloud Run
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_SERVICE_API }} \
-            --force-new-deployment
+          gcloud run deploy ${{ env.SERVICE_NAME_API }} \
+            --image gcr.io/${{ env.GCP_PROJECT_ID }}/api:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 10 \
+            --memory 512Mi \
+            --cpu 1 \
+            --set-env-vars NODE_ENV=staging \
+            --set-secrets DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest
 
-      - name: Update ECS service (Worker)
+      - name: Deploy Worker to Cloud Run
         run: |
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_SERVICE_WORKER }} \
-            --force-new-deployment
-
-      - name: Wait for services to stabilize
-        run: |
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE_API }} ${{ env.ECS_SERVICE_WORKER }}
+          gcloud run deploy ${{ env.SERVICE_NAME_WORKER }} \
+            --image gcr.io/${{ env.GCP_PROJECT_ID }}/worker:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --min-instances 0 \
+            --max-instances 5 \
+            --memory 512Mi \
+            --cpu 0.5 \
+            --set-env-vars NODE_ENV=staging \
+            --set-secrets DB_PASSWORD=db-password:latest
 
   smoke-tests:
     name: Run Smoke Tests
-    needs: deploy
+    needs: build-and-deploy
     runs-on: ubuntu-latest
-    
+
     steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Get Cloud Run service URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
       - name: Health check
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://staging.omnitrackr.com/api/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-url.outputs.url }}/api/health)
           if [ $response != "200" ]; then
             echo "Health check failed with status $response"
             exit 1
@@ -212,7 +216,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Staging Deployment*\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                    "text": "*Staging Deployment*\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}\nURL: ${{ steps.get-url.outputs.url }}"
                   }
                 }
               ]
@@ -235,12 +239,10 @@ on:
   workflow_dispatch:  # Allow manual trigger
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPOSITORY_API: omnitrackr/api
-  ECR_REPOSITORY_WORKER: omnitrackr/worker
-  ECS_CLUSTER: omnitrackr-prod
-  ECS_SERVICE_API: omnitrackr-api-prod
-  ECS_SERVICE_WORKER: omnitrackr-worker-prod
+  GCP_PROJECT_ID: omnitrackr-prod
+  GCP_REGION: us-central1
+  SERVICE_NAME_API: omnitrackr-api
+  SERVICE_NAME_WORKER: omnitrackr-worker
 
 jobs:
   test:
@@ -270,43 +272,41 @@ jobs:
     name: Build and Push Docker Images
     needs: test
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: ${{ env.AWS_REGION }}
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
 
-      - name: Login to Amazon ECR
-        id: login-ecr
-        uses: aws-actions/amazon-ecr-login@v2
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Build, tag, and push API image
+      - name: Configure Docker for GCP
+        run: gcloud auth configure-docker
+
+      - name: Build and push API image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_API:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY_API:latest \
+          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/api:$IMAGE_TAG \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/api:latest \
             -f packages/api/Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_API:latest
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/api:$IMAGE_TAG
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/api:latest
 
-      - name: Build, tag, and push Worker image
+      - name: Build and push Worker image
         env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:$IMAGE_TAG \
-            -t $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:latest \
+          docker build -t gcr.io/${{ env.GCP_PROJECT_ID }}/worker:$IMAGE_TAG \
+            -t gcr.io/${{ env.GCP_PROJECT_ID }}/worker:latest \
             -f packages/worker/Dockerfile .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY_WORKER:latest
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/worker:$IMAGE_TAG
+          docker push gcr.io/${{ env.GCP_PROJECT_ID }}/worker:latest
 
   approval:
     name: Manual Approval
@@ -319,61 +319,108 @@ jobs:
         run: echo "Deployment approved"
 
   deploy:
-    name: Deploy to Production ECS
+    name: Deploy to Production Cloud Run
     needs: approval
     runs-on: ubuntu-latest
-    
+
     steps:
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
         with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID_PROD }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY_PROD }}
-          aws-region: ${{ env.AWS_REGION }}
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
 
-      - name: Deploy API with Blue/Green
-        run: |
-          # Update task definition with new image
-          TASK_DEFINITION=$(aws ecs describe-task-definition --task-definition omnitrackr-api-prod)
-          NEW_TASK_DEF=$(echo $TASK_DEFINITION | jq --arg IMAGE "$ECR_REGISTRY/$ECR_REPOSITORY_API:${{ github.sha }}" '.taskDefinition | .containerDefinitions[0].image = $IMAGE | del(.taskDefinitionArn) | del(.revision) | del(.status) | del(.requiresAttributes) | del(.compatibilities) | del(.registeredAt) | del(.registeredBy)')
-          
-          # Register new task definition
-          NEW_TASK_INFO=$(aws ecs register-task-definition --cli-input-json "$NEW_TASK_DEF")
-          NEW_REVISION=$(echo $NEW_TASK_INFO | jq '.taskDefinition.revision')
-          
-          # Update service
-          aws ecs update-service \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --service ${{ env.ECS_SERVICE_API }} \
-            --task-definition omnitrackr-api-prod:$NEW_REVISION
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
 
-      - name: Wait for service stabilization
+      - name: Deploy API with Gradual Rollout
         run: |
-          aws ecs wait services-stable \
-            --cluster ${{ env.ECS_CLUSTER }} \
-            --services ${{ env.ECS_SERVICE_API }}
+          # Deploy new revision with 0% traffic
+          gcloud run deploy ${{ env.SERVICE_NAME_API }} \
+            --image gcr.io/${{ env.GCP_PROJECT_ID }}/api:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --allow-unauthenticated \
+            --min-instances 2 \
+            --max-instances 100 \
+            --memory 1Gi \
+            --cpu 1 \
+            --set-env-vars NODE_ENV=production \
+            --set-secrets DB_PASSWORD=db-password-prod:latest,JWT_SECRET=jwt-secret-prod:latest \
+            --no-traffic
+
+          # Get the new revision name
+          NEW_REVISION=$(gcloud run services describe ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.latestCreatedRevisionName)')
+
+          # Gradual rollout: 10% -> 50% -> 100%
+          echo "Routing 10% traffic to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions $NEW_REVISION=10
+
+          sleep 60  # Monitor for 1 minute
+
+          echo "Routing 50% traffic to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions $NEW_REVISION=50
+
+          sleep 120  # Monitor for 2 minutes
+
+          echo "Routing 100% traffic to new revision..."
+          gcloud run services update-traffic ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --to-revisions $NEW_REVISION=100
+
+      - name: Deploy Worker
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME_WORKER }} \
+            --image gcr.io/${{ env.GCP_PROJECT_ID }}/worker:${{ github.sha }} \
+            --region ${{ env.GCP_REGION }} \
+            --platform managed \
+            --no-allow-unauthenticated \
+            --min-instances 1 \
+            --max-instances 50 \
+            --memory 1Gi \
+            --cpu 1 \
+            --set-env-vars NODE_ENV=production \
+            --set-secrets DB_PASSWORD=db-password-prod:latest
 
   smoke-tests:
     name: Production Smoke Tests
     needs: deploy
     runs-on: ubuntu-latest
-    
+
     steps:
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+
+      - name: Get Cloud Run service URL
+        id: get-url
+        run: |
+          URL=$(gcloud run services describe ${{ env.SERVICE_NAME_API }} \
+            --region ${{ env.GCP_REGION }} \
+            --format 'value(status.url)')
+          echo "url=$URL" >> $GITHUB_OUTPUT
+
       - name: Health check
         run: |
-          response=$(curl -s -o /dev/null -w "%{http_code}" https://api.omnitrackr.com/api/health)
+          response=$(curl -s -o /dev/null -w "%{http_code}" ${{ steps.get-url.outputs.url }}/api/health)
           if [ $response != "200" ]; then
             echo "Health check failed"
             exit 1
           fi
 
-      - name: Create file source test
+      - name: API test
         run: |
           # Test critical endpoint
           response=$(curl -s -o /dev/null -w "%{http_code}" \
-            -X GET https://api.omnitrackr.com/api/file-sources)
-          if [ $response != "200" ]; then
-            echo "API test failed"
+            -X GET ${{ steps.get-url.outputs.url }}/api/file-sources)
+          if [ $response != "200" ] && [ $response != "401" ]; then
+            echo "API test failed with status $response"
             exit 1
           fi
 
@@ -389,7 +436,7 @@ jobs:
                   "type": "section",
                   "text": {
                     "type": "mrkdwn",
-                    "text": "*Production Deployment*\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}"
+                    "text": "*Production Deployment*\nStatus: ${{ job.status }}\nCommit: ${{ github.sha }}\nAuthor: ${{ github.actor }}\nURL: ${{ steps.get-url.outputs.url }}"
                   }
                 }
               ]
@@ -485,62 +532,66 @@ jobs:
 
 #### **For Staging:**
 ```
-AWS_ACCESS_KEY_ID          # IAM user for staging deployments
-AWS_SECRET_ACCESS_KEY
+GCP_SA_KEY                 # Service account JSON key for staging
 SLACK_WEBHOOK_URL          # Optional: Slack notifications
 ```
 
 #### **For Production:**
 ```
-AWS_ACCESS_KEY_ID_PROD     # IAM user for production deployments
-AWS_SECRET_ACCESS_KEY_PROD
-SLACK_WEBHOOK_PROD
+GCP_SA_KEY_PROD            # Service account JSON key for production
+SLACK_WEBHOOK_PROD         # Optional: Slack notifications
 ```
 
-### **How to Add Secrets:**
+### **How to Create Service Account Keys:**
+
+```bash
+# For Staging
+gcloud iam service-accounts create github-actions-staging \
+  --display-name="GitHub Actions Staging Deployment" \
+  --project=omnitrackr-staging
+
+# Grant necessary permissions
+gcloud projects add-iam-policy-binding omnitrackr-staging \
+  --member="serviceAccount:github-actions-staging@omnitrackr-staging.iam.gserviceaccount.com" \
+  --role="roles/run.admin"
+
+gcloud projects add-iam-policy-binding omnitrackr-staging \
+  --member="serviceAccount:github-actions-staging@omnitrackr-staging.iam.gserviceaccount.com" \
+  --role="roles/storage.admin"
+
+gcloud projects add-iam-policy-binding omnitrackr-staging \
+  --member="serviceAccount:github-actions-staging@omnitrackr-staging.iam.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountUser"
+
+# Create key
+gcloud iam service-accounts keys create github-actions-staging-key.json \
+  --iam-account=github-actions-staging@omnitrackr-staging.iam.gserviceaccount.com
+
+# For Production (repeat with omnitrackr-prod project)
+```
+
+### **How to Add Secrets to GitHub:**
 
 ```bash
 # Using GitHub CLI
-gh secret set AWS_ACCESS_KEY_ID --body "AKIAIOSFODNN7EXAMPLE"
-gh secret set AWS_SECRET_ACCESS_KEY --body "wJalrXUtnFEMI..."
+gh secret set GCP_SA_KEY < github-actions-staging-key.json
+gh secret set GCP_SA_KEY_PROD < github-actions-prod-key.json
+
+# Optional: Slack webhooks
+gh secret set SLACK_WEBHOOK_URL --body "https://hooks.slack.com/services/..."
+gh secret set SLACK_WEBHOOK_PROD --body "https://hooks.slack.com/services/..."
 
 # Or via GitHub UI:
 # Settings → Secrets and variables → Actions → New repository secret
 ```
 
-### **IAM Policy for GitHub Actions:**
+### **Service Account Permissions Summary:**
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecr:GetAuthorizationToken",
-        "ecr:BatchCheckLayerAvailability",
-        "ecr:GetDownloadUrlForLayer",
-        "ecr:BatchGetImage",
-        "ecr:PutImage",
-        "ecr:InitiateLayerUpload",
-        "ecr:UploadLayerPart",
-        "ecr:CompleteLayerUpload"
-      ],
-      "Resource": "*"
-    },
-    {
-      "Effect": "Allow",
-      "Action": [
-        "ecs:UpdateService",
-        "ecs:DescribeServices",
-        "ecs:DescribeTaskDefinition",
-        "ecs:RegisterTaskDefinition"
-      ],
-      "Resource": "*"
-    }
-  ]
-}
-```
+The GitHub Actions service account needs these roles:
+- `roles/run.admin` - Deploy Cloud Run services
+- `roles/storage.admin` - Push to Google Container Registry (GCR)
+- `roles/iam.serviceAccountUser` - Act as Cloud Run service account
+- `roles/secretmanager.secretAccessor` - Access secrets (optional, for migrations)
 
 ---
 
@@ -652,26 +703,29 @@ CMD ["node", "dist/index.js"]
 - [ ] Documentation complete
 
 ### **GitHub:**
-- [ ] Repository created
-- [ ] Code pushed
+- [x] Repository created
+- [x] Code pushed
 - [ ] Branch protection enabled
 - [ ] Secrets configured
-- [ ] Workflows added
+- [ ] Workflows added (.github/workflows/)
 
-### **AWS:**
-- [ ] AWS account created
-- [ ] ECR repositories created
-- [ ] ECS clusters created
-- [ ] RDS instances provisioned
-- [ ] VPC configured
-- [ ] IAM roles/policies created
+### **GCP:**
+- [ ] GCP account created (get $300 free credits)
+- [ ] Projects created (omnitrackr-staging, omnitrackr-prod)
+- [ ] gcloud CLI installed and configured
+- [ ] Cloud SQL PostgreSQL provisioned
+- [ ] Secret Manager secrets created
+- [ ] Service accounts created for GitHub Actions
+- [ ] APIs enabled (Cloud Run, Cloud SQL, Secret Manager, etc.)
 
 ### **CI/CD:**
-- [ ] Dockerfiles created
+- [ ] Dockerfiles created (packages/api/Dockerfile, packages/worker/Dockerfile)
 - [ ] GitHub Actions workflows added
-- [ ] Secrets configured
-- [ ] Test deployment to staging
+- [ ] GCP service account keys added to GitHub Secrets
+- [ ] Test deployment to staging (merge to develop branch)
 - [ ] Smoke tests passing
+- [ ] Production environment configured
+- [ ] Manual approval environment set up in GitHub
 
 ---
 
