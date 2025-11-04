@@ -28,7 +28,8 @@ Think of Terraform like a **recipe** for your infrastructure:
 
 ```bash
 # macOS
-brew install terraform
+brew tap hashicorp/tap
+brew install hashicorp/tap/terraform
 
 # Verify installation
 terraform version
@@ -64,6 +65,10 @@ Make sure `project_id` matches your actual GCP project ID.
 
 ```bash
 # Download required providers
+
+# Navigate to staging directory
+cd infrastructure/terraform/staging
+
 terraform init
 ```
 

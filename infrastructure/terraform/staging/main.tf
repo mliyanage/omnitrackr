@@ -8,12 +8,11 @@ terraform {
     }
   }
 
-  # Optional: Store Terraform state in GCS bucket for team collaboration
-  # Uncomment after creating a GCS bucket for state storage
-  # backend "gcs" {
-  #   bucket = "omnitrackr-terraform-state"
-  #   prefix = "staging"
-  # }
+  # Store Terraform state in GCS bucket for team collaboration
+  backend "gcs" {
+    bucket = "omnitrackr-terraform-state"
+    prefix = "staging"
+  }
 }
 
 provider "google" {

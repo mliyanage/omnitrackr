@@ -1,6 +1,6 @@
 # Terraform files
 .terraform/
-.terraform.lock.hcl
+# .terraform.lock.hcl  # SHOULD be committed to lock provider versions
 *.tfstate
 *.tfstate.backup
 *.tfstate.*.backup

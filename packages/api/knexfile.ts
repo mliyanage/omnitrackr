@@ -90,40 +90,81 @@ const config: { [key: string]: Knex.Config } = {
 
   staging: {
     ...baseConfig,
-    connection: {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      ssl: {
-        rejectUnauthorized: true, // Enforce SSL in staging
-      },
-    },
+    connection: (() => {
+      // Use Cloud SQL Proxy if USE_CLOUD_SQL_PROXY=true (recommended for local migrations)
+      const useProxy = process.env.USE_CLOUD_SQL_PROXY === 'true';
+
+      if (useProxy) {
+        // Connect via Cloud SQL Proxy (localhost)
+        return {
+          host: '127.0.0.1',
+          port: parseInt(process.env.CLOUD_SQL_PROXY_PORT || '5433'),
+          database: process.env.DB_NAME,
+          user: process.env.DB_USER,
+          password: process.env.DB_PASSWORD,
+          // No SSL needed - proxy handles encryption
+        };
+      } else {
+        // Direct connection (used by Cloud Run)
+        return {
+          host: process.env.DB_HOST,
+          port: parseInt(process.env.DB_PORT || '5432'),
+          database: process.env.DB_NAME,
+          user: process.env.DB_USER,
+          password: process.env.DB_PASSWORD,
+          ssl: {
+            rejectUnauthorized: false, // Cloud SQL uses self-signed certs
+          },
+        };
+      }
+    })(),
     pool: {
       ...baseConfig.pool,
-      min: parseInt(process.env.DB_POOL_MIN || '2'),
-      max: parseInt(process.env.DB_POOL_MAX || '20'),
+      min: parseInt(process.env.DB_POOL_MIN || '0'),
+      max: parseInt(process.env.DB_POOL_MAX || '5'), // db-f1-micro has max 25 connections
+      // Prevent "too many connections" errors
+      acquireTimeoutMillis: 30000,
+      idleTimeoutMillis: 10000,
     },
     debug: false,
   },
 
   production: {
     ...baseConfig,
-    connection: {
-      host: process.env.DB_HOST,
-      port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME,
-      user: process.env.DB_USER,
-      password: process.env.DB_PASSWORD,
-      ssl: {
-        rejectUnauthorized: true, // Always use SSL in production
-      },
-      // Connection timeout
-      connectionTimeoutMillis: 5000,
-      // Statement timeout (30 seconds)
-      statement_timeout: 30000,
-    },
+    connection: (() => {
+      // Use Cloud SQL Proxy if USE_CLOUD_SQL_PROXY=true (recommended for local access to prod)
+      const useProxy = process.env.USE_CLOUD_SQL_PROXY === 'true';
+
+      const baseConnection = {
+        database: process.env.DB_NAME,
+        user: process.env.DB_USER,
+        password: process.env.DB_PASSWORD,
+        // Connection timeout
+        connectionTimeoutMillis: 5000,
+        // Statement timeout (30 seconds)
+        statement_timeout: 30000,
+      };
+
+      if (useProxy) {
+        // Connect via Cloud SQL Proxy (localhost)
+        return {
+          ...baseConnection,
+          host: '127.0.0.1',
+          port: parseInt(process.env.CLOUD_SQL_PROXY_PORT || '5433'),
+          // No SSL needed - proxy handles encryption
+        };
+      } else {
+        // Direct connection (used by Cloud Run)
+        return {
+          ...baseConnection,
+          host: process.env.DB_HOST,
+          port: parseInt(process.env.DB_PORT || '5432'),
+          ssl: {
+            rejectUnauthorized: false, // Cloud SQL uses self-signed certs
+          },
+        };
+      }
+    })(),
     pool: {
       ...baseConfig.pool,
       min: parseInt(process.env.DB_POOL_MIN || '5'),
@@ -143,7 +184,15 @@ const config: { [key: string]: Knex.Config } = {
 
 // Validate environment variables for staging/production
 if (nodeEnv === 'staging' || nodeEnv === 'production') {
-  validateEnvVars(['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']);
+  const useProxy = process.env.USE_CLOUD_SQL_PROXY === 'true';
+
+  if (useProxy) {
+    // When using Cloud SQL Proxy, DB_HOST is not needed (connects to localhost)
+    validateEnvVars(['DB_NAME', 'DB_USER', 'DB_PASSWORD']);
+  } else {
+    // Direct connection requires DB_HOST
+    validateEnvVars(['DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD']);
+  }
 }
 
 // Validate DB credentials exist for dev/test

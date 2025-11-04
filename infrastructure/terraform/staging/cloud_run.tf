@@ -98,6 +98,7 @@ resource "google_cloud_run_service" "api" {
   ]
 }
 
+/*
 # Cloud Run Worker Service
 resource "google_cloud_run_service" "worker" {
   name     = "omnitrackr-worker"
@@ -177,7 +178,7 @@ resource "google_cloud_run_service" "worker" {
     google_secret_manager_secret_version.db_password,
   ]
 }
-
+*/
 # Allow public access to API service
 resource "google_cloud_run_service_iam_member" "api_public" {
   service  = google_cloud_run_service.api.name

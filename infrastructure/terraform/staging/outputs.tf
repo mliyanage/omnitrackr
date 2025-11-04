@@ -38,12 +38,12 @@ output "api_service_url" {
   description = "Cloud Run API service URL"
   value       = google_cloud_run_service.api.status[0].url
 }
-
+/*
 output "worker_service_url" {
   description = "Cloud Run Worker service URL"
   value       = google_cloud_run_service.worker.status[0].url
 }
-
+*/
 output "cloud_run_service_account" {
   description = "Service account email for Cloud Run services"
   value       = google_service_account.cloud_run.email
