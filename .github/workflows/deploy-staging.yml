@@ -1,0 +1,101 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches:
+      - develop
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGING }}
+  GCP_REGION: us-central1
+  SERVICE_NAME: omnitrackr-api-staging
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+
+jobs:
+  deploy:
+    name: Build and Deploy to Cloud Run (Staging)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test
+        env:
+          NODE_ENV: test
+
+      - name: Run linter
+        run: npm run lint
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_STAGING }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:latest \
+            -f Dockerfile .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --platform=managed \
+            --region=${{ env.GCP_REGION }} \
+            --allow-unauthenticated \
+            --set-env-vars="NODE_ENV=staging,API_VERSION=v1,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }}" \
+            --port=3000 \
+            --update-secrets="DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest" \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --min-instances=1 \
+            --max-instances=1 \
+            --memory=512Mi \
+            --cpu=1 \
+            --timeout=300 \
+            --concurrency=80
+
+      - name: Get Service URL
+        id: get-url
+        run: |
+          SERVICE_URL=$(gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --platform=managed \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --format='value(status.url)')
+          echo "url=$SERVICE_URL" >> $GITHUB_OUTPUT
+          echo "Deployed to: $SERVICE_URL"
+
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
