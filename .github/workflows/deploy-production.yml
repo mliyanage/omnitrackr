@@ -70,7 +70,8 @@ jobs:
             --region=${{ env.GCP_REGION }} \
             --allow-unauthenticated \
             --add-cloudsql-instances=${{ env.GCP_PROJECT_ID }}:${{ env.GCP_REGION }}:omnitrackr-production-db \
-            --set-env-vars="NODE_ENV=production,API_VERSION=v1,PORT=3000,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=/cloudsql/${{ env.GCP_PROJECT_ID }}:${{ env.GCP_REGION }}:omnitrackr-production-db,DB_PORT=5432,DB_NAME=omnitrackr,DB_USER=omnitrackr_user" \
+            --set-env-vars="NODE_ENV=production,API_VERSION=v1,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=/cloudsql/${{ env.GCP_PROJECT_ID }}:${{ env.GCP_REGION }}:omnitrackr-production-db,DB_PORT=5432,DB_NAME=omnitrackr,DB_USER=omnitrackr_user" \
+            --port=3000 \
             --update-secrets="DB_PASSWORD=db-password-prod:latest,JWT_SECRET=jwt-secret-prod:latest" \
             --project=${{ env.GCP_PROJECT_ID }} \
             --min-instances=1 \
