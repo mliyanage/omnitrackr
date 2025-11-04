@@ -68,3 +68,37 @@ temp/
 # Misc
 .cache/
 .parcel-cache/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+*.tfvars.backup
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Secrets & Credentials (NEVER commit these!)
+**/secrets/
+**/credentials/
+**/*secret*
+**/*password*
+**/*credential*
+**/*key.json
+**/*key.pem
+**/*.pem
+**/*.key
+**/*.crt
+**/*.p12
+**/*.pfx
+**/.aws/
+**/.gcloud/
+**/service-account*.json
+gcp-credentials*.json
+aws-credentials*.json
