@@ -61,12 +61,22 @@ export async function initializeDatabase(): Promise<void> {
     );
   }
 
-  // Check if migrations are up to date
+  // Run pending migrations
   try {
-    const [batchNo, migrations] = await db.migrate.currentVersion();
-    console.log(`📊 Current migration version: ${migrations || 'none'}`);
+    console.log('🔄 Running database migrations...');
+    const [_batchNo, migrations] = await db.migrate.latest();
+
+    if (migrations.length === 0) {
+      console.log('✅ Database is up to date (no pending migrations)');
+    } else {
+      console.log(`✅ Ran ${migrations.length} migration(s):`);
+      migrations.forEach((migration: string) => {
+        console.log(`   - ${migration}`);
+      });
+    }
   } catch (error) {
-    console.warn('⚠️  Could not check migration status:', error);
+    console.error('❌ Migration failed:', error);
+    throw new Error(`Database migration failed: ${error}`);
   }
 }
 
