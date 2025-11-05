@@ -19,7 +19,10 @@ dotenv.config({ path: path.resolve(__dirname, `.env.${nodeEnv}.local`) });
 const baseConfig: Knex.Config = {
   client: 'pg',
   migrations: {
-    directory: path.join(__dirname, 'migrations'),
+    // In production (dist/), migrations are one level up from the compiled code
+    directory: nodeEnv === 'production' || nodeEnv === 'staging'
+      ? path.join(__dirname, '../migrations')
+      : path.join(__dirname, 'migrations'),
     tableName: 'knex_migrations',
     extension: 'ts',
   },
