@@ -28,7 +28,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
-import type { FileSource, CreateFileSourceRequest } from '@/types';
+import type { FileSource, CreateFileSourceRequest, S3ConnectionConfig } from '@/types';
 
 const s3ConfigSchema = z.object({
   name: z.string().min(1, 'Name is required').max(255),
@@ -70,9 +70,9 @@ export function S3ConfigForm({ onSubmit, initialData, isLoading }: S3ConfigFormP
       description: '',
       department: initialData.department,
       type: 'S3',
-      bucket: (initialData.connection_config as any)?.bucket || '',
-      region: (initialData.connection_config as any)?.region || '',
-      path_prefix: (initialData.connection_config as any)?.path_prefix || '',
+      bucket: (initialData.connection_config as S3ConnectionConfig)?.bucket || '',
+      region: (initialData.connection_config as S3ConnectionConfig)?.region || '',
+      path_prefix: (initialData.connection_config as S3ConnectionConfig)?.path_prefix || '',
       access_key_id: '',
       secret_access_key: '',
       match_rule: initialData.match_rule,

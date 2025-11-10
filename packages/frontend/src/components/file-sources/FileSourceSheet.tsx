@@ -8,7 +8,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { S3ConfigForm } from './S3ConfigForm';
-import type { FileSource, CreateFileSourceRequest } from '@/types';
+import type { FileSource, CreateFileSourceRequest, UpdateFileSourceRequest } from '@/types';
 
 interface FileSourceSheetProps {
   open: boolean;
@@ -28,7 +28,7 @@ export function FileSourceSheet({ open, onOpenChange, source }: FileSourceSheetP
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: any }) => updateFileSource(id, data),
+    mutationFn: ({ id, data }: { id: string; data: UpdateFileSourceRequest }) => updateFileSource(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['file-sources'] });
       onOpenChange(false);
