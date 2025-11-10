@@ -90,12 +90,17 @@ jobs:
 
       - name: Create deployment summary
         run: |
-          echo "## Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "## Backend API Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
           echo "**Service:** ${{ env.SERVICE_NAME }}" >> $GITHUB_STEP_SUMMARY
           echo "**Region:** ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
           echo "**Image:** \`${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
-          echo "**URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Direct Cloud Run URL:** ${{ steps.get-url.outputs.url }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Load Balanced URL:** https://staging.omnitrackr.dev/api" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Note" >> $GITHUB_STEP_SUMMARY
+          echo "Frontend deployment is handled separately by the \`deploy-frontend-staging\` workflow." >> $GITHUB_STEP_SUMMARY
+          echo "Frontend changes will trigger their own deployment automatically." >> $GITHUB_STEP_SUMMARY

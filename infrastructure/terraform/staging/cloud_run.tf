@@ -3,7 +3,7 @@
 
 # Cloud Run API Service
 resource "google_cloud_run_service" "api" {
-  name     = "omnitrackr-api"
+  name     = "omnitrackr-api-staging"
   location = var.region
 
   template {
@@ -96,6 +96,15 @@ resource "google_cloud_run_service" "api" {
     google_secret_manager_secret_version.db_password,
     google_secret_manager_secret_version.jwt_secret,
   ]
+
+  # Ignore changes made by GitHub Actions deployments
+  lifecycle {
+    ignore_changes = [
+      template[0].metadata[0].annotations,
+      template[0].spec[0].containers[0].image,
+      template[0].spec[0].containers[0].env,
+    ]
+  }
 }
 
 /*

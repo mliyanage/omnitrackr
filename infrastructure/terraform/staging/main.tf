@@ -28,6 +28,9 @@ resource "google_project_service" "required_apis" {
     "secretmanager.googleapis.com",
     "cloudscheduler.googleapis.com",
     "vpcaccess.googleapis.com",
+    "compute.googleapis.com",           # For Load Balancer
+    "storage-api.googleapis.com",       # For Cloud Storage
+    "storage-component.googleapis.com", # For Cloud Storage components
   ])
 
   service            = each.value
