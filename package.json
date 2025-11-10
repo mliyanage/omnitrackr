@@ -14,11 +14,15 @@
     "lint": "turbo run lint",
     "clean": "turbo run clean",
     "dev:api": "npm run dev --workspace=packages/api",
+    "dev:frontend": "npm run dev --workspace=packages/frontend",
     "dev:worker": "npm run dev --workspace=packages/worker",
     "dev:notification": "npm run dev --workspace=packages/notification-manager",
     "build:all": "npm run build",
     "build:shared": "npm run build --workspace=packages/shared",
     "build:api": "npm run build --workspace=packages/api",
+    "build:frontend": "npm run build --workspace=packages/frontend",
+    "build:frontend:staging": "npm run build:staging --workspace=packages/frontend",
+    "build:frontend:production": "npm run build:production --workspace=packages/frontend",
     "build:worker": "npm run build --workspace=packages/worker",
     "build:notification": "npm run build --workspace=packages/notification-manager",
     "docker:build": "npm run docker:build:api && npm run docker:build:worker && npm run docker:build:notification",
@@ -43,12 +47,20 @@
   "author": "OmniTrackr Team",
   "license": "UNLICENSED",
   "devDependencies": {
-    "turbo": "^1.11.0",
     "@types/node": "^20.10.0",
+    "shadcn": "^3.5.0",
+    "turbo": "^1.11.0",
     "typescript": "^5.3.0"
   },
   "engines": {
     "node": ">=20.0.0",
     "npm": ">=10.0.0"
+  },
+  "dependencies": {
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-dialog": "^1.1.15",
+    "@radix-ui/react-separator": "^1.1.8",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8"
   }
 }

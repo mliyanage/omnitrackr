@@ -1,0 +1,91 @@
+name: Deploy Frontend to Staging
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'packages/frontend/**'
+      - '.github/workflows/deploy-frontend-staging.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGING }}
+  GCP_REGION: us-central1
+  BUCKET_NAME: omnitrackr-staging-frontend
+
+jobs:
+  deploy-frontend:
+    name: Build and Deploy Frontend to Cloud Storage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend for staging
+        run: |
+          cd packages/frontend
+          npm run build:staging
+        env:
+          NODE_ENV: production
+          VITE_API_URL: https://staging.omnitrackr.dev/api
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_STAGING }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Storage
+        run: |
+          # Sync build files to bucket
+          gsutil -m rsync -r -d packages/frontend/dist gs://${{ env.BUCKET_NAME }}/
+
+          # Set cache headers for static assets
+          # HTML files - no cache (for SPA routing)
+          gsutil -m setmeta -h "Cache-Control:no-cache, no-store, must-revalidate" \
+            gs://${{ env.BUCKET_NAME }}/index.html
+
+          # JS and CSS files - cache for 1 year (they have content hashes)
+          gsutil -m setmeta -h "Cache-Control:public, max-age=31536000, immutable" \
+            "gs://${{ env.BUCKET_NAME }}/assets/*.js"
+          gsutil -m setmeta -h "Cache-Control:public, max-age=31536000, immutable" \
+            "gs://${{ env.BUCKET_NAME }}/assets/*.css"
+
+          # Images and fonts - cache for 1 week
+          gsutil -m setmeta -h "Cache-Control:public, max-age=604800" \
+            "gs://${{ env.BUCKET_NAME }}/assets/*.{png,jpg,jpeg,gif,svg,webp,woff,woff2,ttf}" || true
+
+      - name: Verify deployment
+        run: |
+          echo "Frontend deployed successfully!"
+          echo "Files in bucket:"
+          gsutil ls gs://${{ env.BUCKET_NAME }}/ | head -20
+
+      - name: Create deployment summary
+        run: |
+          echo "## Frontend Deployment Successful! :rocket:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Bucket:** \`${{ env.BUCKET_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Frontend URL:** https://staging.omnitrackr.dev" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Build time:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Next Steps" >> $GITHUB_STEP_SUMMARY
+          echo "- Verify frontend at https://staging.omnitrackr.dev" >> $GITHUB_STEP_SUMMARY
+          echo "- Test API integration at https://staging.omnitrackr.dev/api/health" >> $GITHUB_STEP_SUMMARY
+          echo "- SSL certificate status: Check GCP Console" >> $GITHUB_STEP_SUMMARY
