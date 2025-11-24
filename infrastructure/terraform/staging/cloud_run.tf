@@ -107,87 +107,9 @@ resource "google_cloud_run_service" "api" {
   }
 }
 
-/*
-# Cloud Run Worker Service
-resource "google_cloud_run_service" "worker" {
-  name     = "omnitrackr-worker"
-  location = var.region
+# Worker has been moved to Cloud Run Jobs (see cloud_run_jobs.tf)
+# Jobs are triggered by Cloud Scheduler instead of running continuously
 
-  template {
-    spec {
-      service_account_name = google_service_account.cloud_run.email
-
-      containers {
-        # Placeholder image - will be updated by GitHub Actions
-        image = "gcr.io/cloudrun/hello"
-
-        resources {
-          limits = {
-            cpu    = var.worker_cpu
-            memory = var.worker_memory
-          }
-        }
-
-        env {
-          name  = "NODE_ENV"
-          value = var.environment
-        }
-
-        env {
-          name  = "DB_HOST"
-          value = google_sql_database_instance.postgres.public_ip_address
-        }
-
-        env {
-          name  = "DB_PORT"
-          value = "5432"
-        }
-
-        env {
-          name  = "DB_NAME"
-          value = var.db_name
-        }
-
-        env {
-          name  = "DB_USER"
-          value = var.db_user
-        }
-
-        # Database password from Secret Manager
-        env {
-          name = "DB_PASSWORD"
-          value_from {
-            secret_key_ref {
-              name = google_secret_manager_secret.db_password.secret_id
-              key  = "latest"
-            }
-          }
-        }
-      }
-
-      container_concurrency = 1
-    }
-
-    metadata {
-      annotations = {
-        "autoscaling.knative.dev/minScale" = tostring(var.worker_min_instances)
-        "autoscaling.knative.dev/maxScale" = tostring(var.worker_max_instances)
-      }
-    }
-  }
-
-  traffic {
-    percent         = 100
-    latest_revision = true
-  }
-
-  depends_on = [
-    google_project_service.required_apis,
-    google_sql_database_instance.postgres,
-    google_secret_manager_secret_version.db_password,
-  ]
-}
-*/
 # Allow public access to API service
 resource "google_cloud_run_service_iam_member" "api_public" {
   service  = google_cloud_run_service.api.name

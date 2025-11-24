@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "OmniTrackr API",
-    "description": "Complete API collection for OmniTrackr - File Exchange Monitoring Platform",
+    "description": "Complete API collection for OmniTrackr - File Exchange Monitoring Platform (Updated for New Schema)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "1.0.0"
+    "version": "2.0.0"
   },
   "variable": [
     {
@@ -27,13 +27,641 @@
               "path": ["api", "health"]
             },
             "description": "Check if the API is running and healthy"
-          },
-          "response": []
+          }
         }
       ]
     },
     {
-      "name": "File Sources",
+      "name": "Source Connections (NEW)",
+      "description": "Manage reusable connection configurations",
+      "item": [
+        {
+          "name": "Get All Connections",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "type", "value": "S3", "disabled": true},
+                {"key": "connection_status", "value": "healthy", "disabled": true},
+                {"key": "enabled", "value": "true", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Connection by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "1"]
+            }
+          }
+        },
+        {
+          "name": "Test Connection",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"S3\",\n  \"connection_config\": {\n    \"region\": \"us-east-1\",\n    \"bucket\": \"test-bucket\",\n    \"accessKeyId\": \"AKIATEST123\",\n    \"secretAccessKey\": \"secret123\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/test",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "test"]
+            },
+            "description": "Test a connection configuration before creating"
+          }
+        },
+        {
+          "name": "Create S3 Connection",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Production S3 Bucket\",\n  \"type\": \"S3\",\n  \"description\": \"Main production S3 bucket for customer data\",\n  \"connection_config\": {\n    \"region\": \"us-east-1\",\n    \"bucket\": \"prod-customer-data\",\n    \"accessKeyId\": \"AKIATEST123\",\n    \"secretAccessKey\": \"secret123\"\n  },\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections"]
+            }
+          }
+        },
+        {
+          "name": "Update Connection",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Connection Name\",\n  \"description\": \"Updated description\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "1"]
+            }
+          }
+        },
+        {
+          "name": "Check Connection Health",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/1/health-check",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "1", "health-check"]
+            },
+            "description": "Run health check on a connection"
+          }
+        },
+        {
+          "name": "Toggle Connection Enabled",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/1/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "1", "toggle"]
+            }
+          }
+        },
+        {
+          "name": "Delete Connection",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/source-connections/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "source-connections", "1"]
+            },
+            "description": "Soft delete a connection"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Schedules (NEW)",
+      "description": "Manage reusable schedules with complex patterns",
+      "item": [
+        {
+          "name": "Get All Schedules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "frequency_type", "value": "daily", "disabled": true},
+                {"key": "enabled", "value": "true", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Active Schedules",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "active"]
+            },
+            "description": "Get all active (enabled and within valid period) schedules"
+          }
+        },
+        {
+          "name": "Get Schedule by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1"]
+            },
+            "description": "Get schedule with exclusions"
+          }
+        },
+        {
+          "name": "Create Schedule - Every 15 Minutes",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Every 15 minutes\",\n  \"description\": \"Continuous polling every 15 minutes\",\n  \"frequency_type\": \"minutely\",\n  \"interval\": 15,\n  \"timezone\": \"UTC\",\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules"]
+            }
+          }
+        },
+        {
+          "name": "Create Schedule - Weekdays 9am",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Weekdays at 9am EST\",\n  \"description\": \"Monday through Friday at 9:00 AM Eastern\",\n  \"frequency_type\": \"weekly\",\n  \"interval\": 1,\n  \"execution_times\": [\"09:00\"],\n  \"days_of_week\": [1, 2, 3, 4, 5],\n  \"timezone\": \"America/New_York\",\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules"]
+            }
+          }
+        },
+        {
+          "name": "Create Schedule - Last Friday of Month",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Last Friday at 5pm\",\n  \"description\": \"Last Friday of each month at 5:00 PM\",\n  \"frequency_type\": \"monthly\",\n  \"interval\": 1,\n  \"execution_times\": [\"17:00\"],\n  \"days_of_week\": [5],\n  \"week_of_month\": [-1],\n  \"timezone\": \"UTC\",\n  \"enabled\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules"]
+            }
+          }
+        },
+        {
+          "name": "Update Schedule",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Schedule Name\",\n  \"interval\": 30\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1"]
+            }
+          }
+        },
+        {
+          "name": "Toggle Schedule Enabled",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": false\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1/toggle",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1", "toggle"]
+            }
+          }
+        },
+        {
+          "name": "Get Schedule Exclusions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1/exclusions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1", "exclusions"]
+            }
+          }
+        },
+        {
+          "name": "Add Exclusion - Specific Date",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exclusion_type\": \"specific_date\",\n  \"excluded_date\": \"2025-12-25\",\n  \"reason\": \"Christmas Day\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1/exclusions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1", "exclusions"]
+            }
+          }
+        },
+        {
+          "name": "Add Exclusion - Date Range",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"exclusion_type\": \"date_range\",\n  \"excluded_from\": \"2025-07-01\",\n  \"excluded_to\": \"2025-07-07\",\n  \"reason\": \"System Maintenance Window\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1/exclusions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1", "exclusions"]
+            }
+          }
+        },
+        {
+          "name": "Delete Exclusion",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/exclusions/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "exclusions", "1"]
+            }
+          }
+        },
+        {
+          "name": "Delete Schedule",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/schedules/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "schedules", "1"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Watchers (NEW)",
+      "description": "Manage file watchers (what files to watch and when)",
+      "item": [
+        {
+          "name": "Get All Watchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "source_connection_id", "value": "1", "disabled": true},
+                {"key": "schedule_id", "value": "1", "disabled": true},
+                {"key": "department_code", "value": "DEPARTMENT:Finance", "disabled": true},
+                {"key": "status", "value": "active", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Active Watchers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/active",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "active"]
+            }
+          }
+        },
+        {
+          "name": "Get Watchers by Connection",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/by-connection/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "by-connection", "1"]
+            }
+          }
+        },
+        {
+          "name": "Get Watchers by Department",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/by-department/DEPARTMENT:Finance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "by-department", "DEPARTMENT:Finance"]
+            }
+          }
+        },
+        {
+          "name": "Get Watcher by ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "1"]
+            },
+            "description": "Get watcher with relations (connection, schedule, department)"
+          }
+        },
+        {
+          "name": "Create Watcher",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"source_connection_id\": 1,\n  \"schedule_id\": 1,\n  \"department_code\": \"DEPARTMENT:Finance\",\n  \"name\": \"Daily Sales Report Watcher\",\n  \"description\": \"Monitors for daily sales reports\",\n  \"file_name_pattern\": \"sales_*.csv\",\n  \"file_path_pattern\": \"/reports/sales/\",\n  \"match_rule\": \"partial\",\n  \"sla_enabled\": true,\n  \"sla_threshold_minutes\": 120,\n  \"direction\": \"inward\",\n  \"owner_team\": \"Finance Team\",\n  \"status\": \"active\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers"]
+            }
+          }
+        },
+        {
+          "name": "Update Watcher",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Watcher Name\",\n  \"sla_threshold_minutes\": 180\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "1"]
+            }
+          }
+        },
+        {
+          "name": "Update Watcher Status",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"paused\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/1/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "1", "status"]
+            },
+            "description": "Valid statuses: active, paused, error, disabled"
+          }
+        },
+        {
+          "name": "Delete Watcher",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/watchers/1",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "watchers", "1"]
+            },
+            "description": "Soft delete a watcher"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Reference Data (NEW)",
+      "description": "Manage reference/lookup data (departments, timezones, holidays, etc.)",
+      "item": [
+        {
+          "name": "Get All Reference Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data?page=1&limit=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data"],
+              "query": [
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "100"},
+                {"key": "code_prefix", "value": "DEPARTMENT:", "disabled": true}
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Categories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/categories",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "categories"]
+            },
+            "description": "Get all category prefixes (DEPARTMENT, TIMEZONE, etc.)"
+          }
+        },
+        {
+          "name": "Get All Departments",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/departments",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "departments"]
+            }
+          }
+        },
+        {
+          "name": "Get All Timezones",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/timezones",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "timezones"]
+            }
+          }
+        },
+        {
+          "name": "Get SLA Thresholds",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/sla-thresholds",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "sla-thresholds"]
+            }
+          }
+        },
+        {
+          "name": "Get Holidays",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/holidays/HOLIDAY_US_2025",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "holidays", "HOLIDAY_US_2025"]
+            }
+          }
+        },
+        {
+          "name": "Get by Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Finance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "code", "DEPARTMENT:Finance"]
+            }
+          }
+        },
+        {
+          "name": "Get by Prefix",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/prefix/DEPARTMENT:",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "prefix", "DEPARTMENT:"]
+            }
+          }
+        },
+        {
+          "name": "Search Reference Data",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/search?q=Finance",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "search"],
+              "query": [{"key": "q", "value": "Finance"}]
+            }
+          }
+        },
+        {
+          "name": "Create Reference Data",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"DEPARTMENT:Marketing\",\n  \"value1\": \"Marketing\",\n  \"value2\": \"MKT\",\n  \"metadata\": {\n    \"description\": \"Marketing Department\"\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data"]
+            }
+          }
+        },
+        {
+          "name": "Update Reference Data",
+          "request": {
+            "method": "PATCH",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"value1\": \"Updated Value\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Marketing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "code", "DEPARTMENT:Marketing"]
+            }
+          }
+        },
+        {
+          "name": "Delete Reference Data",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Marketing",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "ref-data", "code", "DEPARTMENT:Marketing"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "File Sources (LEGACY)",
+      "description": "Legacy file sources endpoints (will be deprecated)",
       "item": [
         {
           "name": "Get All File Sources",
@@ -45,27 +673,12 @@
               "host": ["{{baseUrl}}"],
               "path": ["api", "file-sources"],
               "query": [
-                {
-                  "key": "page",
-                  "value": "1",
-                  "description": "Page number (default: 1)"
-                },
-                {
-                  "key": "limit",
-                  "value": "20",
-                  "description": "Items per page (default: 20, max: 100)"
-                },
-                {
-                  "key": "department",
-                  "value": "Finance",
-                  "description": "Filter by department (optional)",
-                  "disabled": true
-                }
+                {"key": "page", "value": "1"},
+                {"key": "limit", "value": "20"},
+                {"key": "department", "value": "Finance", "disabled": true}
               ]
-            },
-            "description": "Get all file sources with pagination and optional department filter"
-          },
-          "response": []
+            }
+          }
         },
         {
           "name": "Get File Source by ID",
@@ -76,35 +689,14 @@
               "raw": "{{baseUrl}}/api/file-sources/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "file-sources", "1"]
-            },
-            "description": "Get a single file source by ID"
-          },
-          "response": []
-        },
-        {
-          "name": "Get File Source Statistics",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/1/statistics",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1", "statistics"]
-            },
-            "description": "Get statistics for a specific file source (file counts, success rate, etc.)"
-          },
-          "response": []
+            }
+          }
         },
         {
           "name": "Test S3 Connection",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"my-test-bucket\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\"\n}"
@@ -113,21 +705,14 @@
               "raw": "{{baseUrl}}/api/file-sources/s3/test-connection",
               "host": ["{{baseUrl}}"],
               "path": ["api", "file-sources", "s3", "test-connection"]
-            },
-            "description": "Test S3 connection before creating a file source. Validates credentials and bucket access."
-          },
-          "response": []
+            }
+          }
         },
         {
           "name": "Create S3 File Source",
           "request": {
             "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
+            "header": [{"key": "Content-Type", "value": "application/json"}],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Customer Data Bucket\",\n  \"department\": \"Finance\",\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"customer-data-prod\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\",\n  \"fileNamePattern\": \"customer_*.csv\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"09:00\",\n  \"timezone\": \"America/New_York\",\n  \"slaThreshold\": 120,\n  \"direction\": \"inward\"\n}"
@@ -136,79 +721,8 @@
               "raw": "{{baseUrl}}/api/file-sources/s3",
               "host": ["{{baseUrl}}"],
               "path": ["api", "file-sources", "s3"]
-            },
-            "description": "Create a new S3 file source. Tests connection before saving."
-          },
-          "response": []
-        },
-        {
-          "name": "Update File Source",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Customer Data Bucket\",\n  \"slaThreshold\": 180,\n  \"schedule\": \"10:00\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1"]
-            },
-            "description": "Update file source fields (partial update). At least one field required."
-          },
-          "response": []
-        },
-        {
-          "name": "Enable File Source",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"enabled\": true\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/1/toggle",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1", "toggle"]
-            },
-            "description": "Enable a file source (set enabled = true)"
-          },
-          "response": []
-        },
-        {
-          "name": "Disable File Source",
-          "request": {
-            "method": "PATCH",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"enabled\": false\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/1/toggle",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1", "toggle"]
-            },
-            "description": "Disable a file source (set enabled = false)"
-          },
-          "response": []
+            }
+          }
         },
         {
           "name": "Delete File Source",
@@ -219,140 +733,8 @@
               "raw": "{{baseUrl}}/api/file-sources/1",
               "host": ["{{baseUrl}}"],
               "path": ["api", "file-sources", "1"]
-            },
-            "description": "Delete a file source (cascades to related inward files)"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Examples",
-      "item": [
-        {
-          "name": "Create S3 Source - Sales Reports",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Sales Reports - Daily\",\n  \"department\": \"Sales\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"sales-reports-prod\",\n  \"bucketRegion\": \"us-west-2\",\n  \"monitorPath\": \"/reports/daily/\",\n  \"fileNamePattern\": \"sales_report_*.xlsx\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"08:00\",\n  \"timezone\": \"America/Los_Angeles\",\n  \"slaThreshold\": 60,\n  \"direction\": \"inward\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/s3",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3"]
-            },
-            "description": "Example: Daily sales reports arriving every morning at 8 AM PST, 1-hour SLA"
-          },
-          "response": []
-        },
-        {
-          "name": "Create S3 Source - Partner Data Feed",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Partner XYZ Data Feed\",\n  \"department\": \"Operations\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"partner-integration\",\n  \"bucketRegion\": \"eu-west-1\",\n  \"monitorPath\": \"/partner-xyz/incoming/\",\n  \"fileNamePattern\": \".*\\\\.json$\",\n  \"matchRule\": \"regex\",\n  \"schedule\": \"00:00\",\n  \"timezone\": \"UTC\",\n  \"slaThreshold\": 1440,\n  \"direction\": \"inward\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/s3",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3"]
-            },
-            "description": "Example: Partner data feed, JSON files, daily at midnight UTC, 24-hour SLA, regex pattern matching"
-          },
-          "response": []
-        },
-        {
-          "name": "Create S3 Source - Outbound Reports",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Customer Reports Outbound\",\n  \"department\": \"Customer Success\",\n  \"awsAccessKeyId\": \"YOUR_AWS_ACCESS_KEY\",\n  \"awsSecretAccessKey\": \"YOUR_AWS_SECRET_KEY\",\n  \"bucketName\": \"customer-reports-outbound\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/delivered/\",\n  \"fileNamePattern\": \"report_*.pdf\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"17:00\",\n  \"timezone\": \"America/New_York\",\n  \"slaThreshold\": 30,\n  \"direction\": \"outward\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/s3",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3"]
-            },
-            "description": "Example: Outbound customer reports that WE deliver, monitoring to ensure delivery, 30-minute SLA"
-          },
-          "response": []
-        }
-      ]
-    },
-    {
-      "name": "Error Examples",
-      "item": [
-        {
-          "name": "Validation Error - Missing Required Fields",
-          "request": {
-            "method": "POST",
-            "header": [
-              {
-                "key": "Content-Type",
-                "value": "application/json"
-              }
-            ],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"Test\"\n}"
-            },
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/s3",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3"]
-            },
-            "description": "Example of validation error when required fields are missing"
-          },
-          "response": []
-        },
-        {
-          "name": "Not Found Error",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/file-sources/99999",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "99999"]
-            },
-            "description": "Example of 404 Not Found error for non-existent resource"
-          },
-          "response": []
-        },
-        {
-          "name": "Invalid Route",
-          "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/api/invalid-route",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "invalid-route"]
-            },
-            "description": "Example of 404 error for invalid route"
-          },
-          "response": []
+            }
+          }
         }
       ]
     }

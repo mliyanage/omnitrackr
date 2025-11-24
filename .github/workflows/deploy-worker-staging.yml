@@ -1,0 +1,131 @@
+name: Deploy Worker to Staging
+
+on:
+  push:
+    branches:
+      - develop
+    paths:
+      - 'packages/worker/**'
+      - 'packages/shared/**'
+      - 'Dockerfile.worker'
+      - '.github/workflows/deploy-worker-staging.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+env:
+  GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGING }}
+  GCP_REGION: us-central1
+  SERVICE_NAME: omnitrackr-worker-staging
+  ARTIFACT_REGISTRY: us-central1-docker.pkg.dev
+
+jobs:
+  deploy:
+    name: Build and Deploy Worker to Cloud Run (Staging)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm run test --workspace=packages/worker
+        env:
+          NODE_ENV: test
+
+      - name: Run linter
+        run: npm run lint --workspace=packages/worker
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_STAGING }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.ARTIFACT_REGISTRY }}
+
+      - name: Build Docker image
+        run: |
+          docker build -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            -t ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:latest \
+            -f Dockerfile.worker .
+
+      - name: Push Docker image to Artifact Registry
+        run: |
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }}
+          docker push ${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:latest
+
+      - name: Deploy Polling Worker Job
+        run: |
+          gcloud run jobs deploy omnitrackr-polling-worker-staging \
+            --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --set-env-vars="NODE_ENV=staging,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},POLLING_WORKER_ENABLED=true,POLLING_BATCH_SIZE=50,SLA_MONITOR_ENABLED=false" \
+            --update-secrets="DB_PASSWORD=db-password:latest" \
+            --memory=512Mi \
+            --cpu=1 \
+            --max-retries=1 \
+            --task-timeout=600s \
+            --execute-now
+
+      - name: Deploy SLA Monitor Job
+        run: |
+          gcloud run jobs deploy omnitrackr-sla-monitor-staging \
+            --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --set-env-vars="NODE_ENV=staging,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=true,SLA_LOOKBACK_HOURS=24" \
+            --update-secrets="DB_PASSWORD=db-password:latest" \
+            --memory=512Mi \
+            --cpu=1 \
+            --max-retries=1 \
+            --task-timeout=600s \
+            --execute-now
+
+      - name: Get Job URLs
+        id: get-url
+        run: |
+          POLLING_JOB_URL="https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-polling-worker-staging?project=${{ env.GCP_PROJECT_ID }}"
+          SLA_JOB_URL="https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-sla-monitor-staging?project=${{ env.GCP_PROJECT_ID }}"
+          echo "url=$POLLING_JOB_URL" >> $GITHUB_OUTPUT
+          echo "Polling Job: $POLLING_JOB_URL"
+          echo "SLA Monitor Job: $SLA_JOB_URL"
+
+      - name: Create deployment summary
+        run: |
+          echo "## Worker Jobs Deployment Successful! :robot:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Environment:** Staging" >> $GITHUB_STEP_SUMMARY
+          echo "**Region:** ${{ env.GCP_REGION }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Cloud Run Jobs Deployed" >> $GITHUB_STEP_SUMMARY
+          echo "1. **Polling Worker Job** - \`omnitrackr-polling-worker-staging\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - Triggered by Cloud Scheduler: Every minute" >> $GITHUB_STEP_SUMMARY
+          echo "   - Batch size: 50 watchers per execution" >> $GITHUB_STEP_SUMMARY
+          echo "   - [View Job](https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-polling-worker-staging?project=${{ env.GCP_PROJECT_ID }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "2. **SLA Monitor Job** - \`omnitrackr-sla-monitor-staging\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - Triggered by Cloud Scheduler: Every 5 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "   - Lookback period: 24 hours" >> $GITHUB_STEP_SUMMARY
+          echo "   - [View Job](https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-sla-monitor-staging?project=${{ env.GCP_PROJECT_ID }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Job Configuration" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode:** Job (run once per trigger)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Retries:** 1" >> $GITHUB_STEP_SUMMARY
+          echo "- **Task Timeout:** 10 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "- **Memory:** 512Mi" >> $GITHUB_STEP_SUMMARY
+          echo "- **CPU:** 1" >> $GITHUB_STEP_SUMMARY

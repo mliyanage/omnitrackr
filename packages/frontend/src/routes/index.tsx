@@ -3,6 +3,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { DashboardPage } from '@/pages/DashboardPage';
 import { FileSourcesPage } from '@/pages/FileSourcesPage';
 import { InwardFilesPage } from '@/pages/InwardFilesPage';
+import WatchersPage from '@/pages/WatchersPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -21,6 +22,10 @@ export const router = createBrowserRouter([
       {
         path: 'inward-files',
         element: <InwardFilesPage />,
+      },
+      {
+        path: 'watchers',
+        element: <WatchersPage />,
       },
       {
         path: 'file-tracking',

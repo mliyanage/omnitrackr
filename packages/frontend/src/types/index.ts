@@ -13,6 +13,9 @@ export interface ApiResponse<T> {
   message?: string;
 }
 
+// Export new watcher-based types
+export * from './watcher.types';
+
 export type FileSourceType = 'S3' | 'AZURE_BLOB' | 'GCS' | 'SFTP' | 'FTP' | 'FTPS' | 'SHAREPOINT' | 'REST_API' | 'DATABASE' | 'FILE_SHARE';
 export type FileSourceStatus = 'active' | 'failed' | 'pending' | 'disabled';
 export type FileSourceDirection = 'inward' | 'outward' | 'bidirectional';

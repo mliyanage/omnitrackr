@@ -7,6 +7,7 @@ import {
   Bell,
   Settings,
   Users,
+  Eye,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -39,6 +40,11 @@ const navItems = [
     title: 'Inward Files',
     href: '/inward-files',
     icon: FileInput,
+  },
+  {
+    title: 'Watchers',
+    href: '/watchers',
+    icon: Eye,
   },
   {
     title: 'File Tracking',

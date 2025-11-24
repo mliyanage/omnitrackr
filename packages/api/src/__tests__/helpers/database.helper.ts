@@ -17,9 +17,18 @@ export class DatabaseHelper {
    * Clean all tables (in reverse order to respect foreign keys)
    */
   async cleanDatabase(): Promise<void> {
+    // New schema tables
+    await this.db('watcher_logs').del();
+    await this.db('file_tracking').del();
+    await this.db('watchers').del();
+    await this.db('schedule_exclusions').del();
+    await this.db('schedules').del();
+    await this.db('source_connections').del();
+    await this.db('ref_data').del();
+
+    // Legacy tables
     await this.db('notification_data').del();
     await this.db('notification_config').del();
-    await this.db('file_tracking').del();
     await this.db('inward_files').del();
     await this.db('file_source_credentials').del();
     await this.db('file_sources').del();
