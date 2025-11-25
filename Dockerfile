@@ -53,14 +53,6 @@ COPY --from=builder /app/packages/shared/package.json ./packages/shared/
 COPY --from=builder /app/packages/api/dist ./packages/api/dist
 COPY --from=builder /app/packages/api/package.json ./packages/api/
 
-# Copy migrations and knexfile (needed for runtime migrations)
-COPY --from=builder /app/packages/api/migrations ./packages/api/migrations
-COPY --from=builder /app/packages/api/knexfile.ts ./packages/api/
-# Copy ts-node and typescript for running migrations at runtime
-COPY --from=builder /app/node_modules/ts-node ./node_modules/ts-node
-COPY --from=builder /app/node_modules/typescript ./node_modules/typescript
-COPY --from=builder /app/node_modules/@types ./node_modules/@types
-
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \

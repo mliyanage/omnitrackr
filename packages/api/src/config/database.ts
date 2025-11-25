@@ -61,7 +61,15 @@ export async function initializeDatabase(): Promise<void> {
     );
   }
 
-  // Run pending migrations
+  // Skip automatic migrations in staging/production
+  // Migrations should be run manually from local using Cloud SQL Proxy
+  if (environment === 'staging' || environment === 'production') {
+    console.log('⏭️  Skipping automatic migrations in staging/production');
+    console.log('   Run migrations manually: NODE_ENV=staging npm run migrate --workspace=packages/api');
+    return;
+  }
+
+  // Run pending migrations in development/test
   try {
     console.log('🔄 Running database migrations...');
     const [_batchNo, migrations] = await db.migrate.latest();
