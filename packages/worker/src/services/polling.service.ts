@@ -191,69 +191,65 @@ export class PollingService {
     let bytesTransferred = 0;
     const detectedFiles: DetectedFile[] = [];
 
-    try {
-      // List objects in bucket with optional prefix
-      const prefix = watcher.file_path_pattern || config.prefix || '';
-      let continuationToken: string | undefined;
+    // List objects in bucket with optional prefix
+    const prefix = watcher.file_path_pattern || config.prefix || '';
+    let continuationToken: string | undefined;
 
-      do {
-        const listCommand = new ListObjectsV2Command({
-          Bucket: config.bucket,
-          Prefix: prefix,
-          ContinuationToken: continuationToken,
-          MaxKeys: 1000,
-        });
+    do {
+      const listCommand = new ListObjectsV2Command({
+        Bucket: config.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      });
 
-        const response = await s3Client.send(listCommand);
-        apiCallsMade++;
+      const response = await s3Client.send(listCommand);
+      apiCallsMade++;
 
-        if (response.Contents) {
-          objectsScanned += response.Contents.length;
+      if (response.Contents) {
+        objectsScanned += response.Contents.length;
 
-          // Filter objects based on file name pattern
-          for (const obj of response.Contents) {
-            if (!obj.Key) continue;
+        // Filter objects based on file name pattern
+        for (const obj of response.Contents) {
+          if (!obj.Key) continue;
 
-            const fileName = obj.Key.split('/').pop() || obj.Key;
+          const fileName = obj.Key.split('/').pop() || obj.Key;
 
-            // Check if file matches the watcher's pattern
-            if (this.matchesPattern(fileName, watcher)) {
-              detectedFiles.push({
-                fileName,
-                filePath: obj.Key,
-                fileSize: obj.Size || 0,
-                lastModified: obj.LastModified || new Date(),
-                isNew: true, // TODO: Check against inward_files table
-              });
+          // Check if file matches the watcher's pattern
+          if (this.matchesPattern(fileName, watcher)) {
+            detectedFiles.push({
+              fileName,
+              filePath: obj.Key,
+              fileSize: obj.Size || 0,
+              lastModified: obj.LastModified || new Date(),
+              isNew: true, // TODO: Check against inward_files table
+            });
 
-              bytesTransferred += obj.Size || 0;
-            }
+            bytesTransferred += obj.Size || 0;
           }
         }
+      }
 
-        continuationToken = response.NextContinuationToken;
-      } while (continuationToken);
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
 
-      // Determine which files are new vs duplicates
-      // TODO: Query inward_files table to check for duplicates
-      const filesNew = detectedFiles.length;
-      const filesDuplicate = 0;
+    // Determine which files are new vs duplicates
+    // TODO: Query inward_files table to check for duplicates
+    const filesNew = detectedFiles.length;
+    const filesDuplicate = 0;
 
-      return {
-        watcherId: watcher.id,
-        success: true,
-        filesDetected: detectedFiles.length,
-        filesNew,
-        filesDuplicate,
-        objectsScanned,
-        apiCallsMade,
-        bytesTransferred,
-        durationMs: Date.now() - startTime,
-        detectedFiles,
-      };
-    } catch (error) {
-      throw error;
-    }
+    return {
+      watcherId: watcher.id,
+      success: true,
+      filesDetected: detectedFiles.length,
+      filesNew,
+      filesDuplicate,
+      objectsScanned,
+      apiCallsMade,
+      bytesTransferred,
+      durationMs: Date.now() - startTime,
+      detectedFiles,
+    };
   }
 
   /**

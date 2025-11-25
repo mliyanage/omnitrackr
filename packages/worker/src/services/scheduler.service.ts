@@ -3,7 +3,6 @@ import { Knex } from 'knex';
 import {
   Schedule,
   ScheduleExclusion,
-  FrequencyType,
   ScheduleRepository,
   ScheduleExclusionRepository,
 } from '@omnitrackr/shared';
@@ -119,7 +118,7 @@ export class SchedulerService {
     // Find next execution time today or tomorrow
     for (const timeStr of executionTimes) {
       const [hour, minute] = timeStr.split(':').map(Number);
-      let candidate = from.set({ hour, minute, second: 0, millisecond: 0 });
+      const candidate = from.set({ hour, minute, second: 0, millisecond: 0 });
 
       if (candidate > from) {
         return candidate;
@@ -191,7 +190,7 @@ export class SchedulerService {
       );
     } else {
       // Default to first of month
-      let candidate = from.set({
+      const candidate = from.set({
         day: 1,
         hour,
         minute,
@@ -216,7 +215,7 @@ export class SchedulerService {
 
     // For yearly, we need month and day
     // For now, default to January 1st
-    let candidate = from.set({
+    const candidate = from.set({
       month: 1,
       day: 1,
       hour,
