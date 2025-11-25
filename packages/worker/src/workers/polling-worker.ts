@@ -123,7 +123,7 @@ export class PollingWorker {
           continue; // Skip watchers without schedules
         }
 
-        const schedule = await this.scheduleRepo.findById(watcher.schedule_id);
+        const schedule = await this.scheduleRepo.findById(watcher.schedule_id) as any;
         if (!schedule) {
           continue;
         }

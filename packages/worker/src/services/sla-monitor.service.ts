@@ -58,7 +58,7 @@ export class SLAMonitorService {
         // Get the watcher's schedule
         if (!watcher.schedule_id) continue;
 
-        const schedule = await this.scheduleRepo.findById(watcher.schedule_id);
+        const schedule = await this.scheduleRepo.findById(watcher.schedule_id) as any;
         if (!schedule) continue;
 
         // Calculate next expected run time
@@ -142,7 +142,7 @@ export class SLAMonitorService {
         await this.fileTrackingRepo.markAsMissing(record.id);
 
         // Create alert
-        const alert: SLAAlert = {
+        const alert: any = {
           fileTracking: record,
           watcher,
           alertType: 'sla_breached',
@@ -231,7 +231,7 @@ export class SLAMonitorService {
       periodEnd
     );
 
-    return summary;
+    return summary as any;
   }
 
   /**
@@ -246,7 +246,7 @@ export class SLAMonitorService {
       watcherId,
       periodStart,
       periodEnd
-    );
+    ) as any;
   }
 
   /**
