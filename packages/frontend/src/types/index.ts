@@ -104,17 +104,4 @@ export interface UpdateFileSourceRequest {
   status?: FileSourceStatus;
 }
 
-export interface TestConnectionRequest {
-  source_type: FileSourceType;
-  connection_config: Record<string, unknown>;
-  credentials: Record<string, unknown>;
-}
-
-export interface TestConnectionResponse {
-  success: boolean;
-  message: string;
-  details?: {
-    objects_found?: number;
-    connection_time_ms?: number;
-  };
-}
+// Note: TestConnectionRequest and TestConnectionResponse are now exported from watcher.types.ts

@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { getDepartments } from '@/api/refData.api';
-import type { RefData } from '@/types';
 
 interface DepartmentComboboxProps {
   value?: number;

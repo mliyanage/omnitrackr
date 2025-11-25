@@ -6,8 +6,6 @@ import {
   Play,
   Pencil,
   Trash2,
-  FileText,
-  Filter,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -140,7 +138,7 @@ export default function WatchersPage() {
     }
   };
 
-  const formatLastCheck = (dateString: string | null) => {
+  const formatLastCheck = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
     const date = new Date(dateString);
     const now = new Date();

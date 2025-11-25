@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/card';
 import { createSchedule, updateSchedule } from '@/api/schedules.api';
 import { getTimezones } from '@/api/refData.api';
-import type { Schedule, FrequencyType, DayOfWeek, WeekOfMonth } from '@/types';
+import type { Schedule, DayOfWeek, WeekOfMonth } from '@/types';
 import { useState } from 'react';
 
 const scheduleFormSchema = z.object({
@@ -161,9 +161,9 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
     };
 
     if (isEditing) {
-      updateMutation.mutate({ id: schedule.id, data: cleanedData });
+      updateMutation.mutate({ id: schedule.id, data: cleanedData as any });
     } else {
-      createMutation.mutate(cleanedData);
+      createMutation.mutate(cleanedData as any);
     }
   };
 

@@ -30,7 +30,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { createConnection, updateConnection, testConnection } from '@/api/connections.api';
-import type { SourceConnection, ConnectionType } from '@/types';
+import type { SourceConnection } from '@/types';
 import { useState } from 'react';
 
 // S3 Configuration Schema
@@ -89,7 +89,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
       ? {
           name: connection.name,
           description: connection.description || '',
-          type: connection.type as ConnectionType,
+          type: connection.type as 'S3' | 'SFTP' | 'AZURE_BLOB',
           connection_config: connection.connection_config,
         }
       : {
@@ -107,6 +107,8 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
   });
 
   const connectionType = form.watch('type');
+  // Type-safe control for FormField components
+  const control = form.control as any;
 
   const createMutation = useMutation({
     mutationFn: createConnection,
@@ -159,7 +161,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
         return (
           <>
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.bucket"
               render={({ field }) => (
                 <FormItem>
@@ -172,7 +174,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.region"
               render={({ field }) => (
                 <FormItem>
@@ -185,7 +187,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.path_prefix"
               render={({ field }) => (
                 <FormItem>
@@ -201,7 +203,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.access_key_id"
               render={({ field }) => (
                 <FormItem>
@@ -214,7 +216,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.secret_access_key"
               render={({ field }) => (
                 <FormItem>
@@ -233,7 +235,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
         return (
           <>
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.host"
               render={({ field }) => (
                 <FormItem>
@@ -246,7 +248,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.port"
               render={({ field }) => (
                 <FormItem>
@@ -259,7 +261,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.username"
               render={({ field }) => (
                 <FormItem>
@@ -272,7 +274,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.password"
               render={({ field }) => (
                 <FormItem>
@@ -288,7 +290,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.path_prefix"
               render={({ field }) => (
                 <FormItem>
@@ -307,7 +309,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
         return (
           <>
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.account_name"
               render={({ field }) => (
                 <FormItem>
@@ -320,7 +322,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.container"
               render={({ field }) => (
                 <FormItem>
@@ -333,7 +335,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.account_key"
               render={({ field }) => (
                 <FormItem>
@@ -346,7 +348,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
               )}
             />
             <FormField
-              control={form.control}
+              control={control}
               name="connection_config.path_prefix"
               render={({ field }) => (
                 <FormItem>
@@ -381,7 +383,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
           </CardHeader>
           <CardContent className="space-y-4">
             <FormField
-              control={form.control}
+              control={control}
               name="name"
               render={({ field }) => (
                 <FormItem>
@@ -395,7 +397,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
             />
 
             <FormField
-              control={form.control}
+              control={control}
               name="description"
               render={({ field }) => (
                 <FormItem>
@@ -413,7 +415,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
             />
 
             <FormField
-              control={form.control}
+              control={control}
               name="type"
               render={({ field }) => (
                 <FormItem>

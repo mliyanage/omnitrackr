@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Check, ChevronsUpDown, Plus } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { cn } from '@/lib/utils';
@@ -18,7 +18,6 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { getConnections } from '@/api/connections.api';
-import type { SourceConnection } from '@/types';
 
 interface ConnectionComboboxProps {
   value?: number;
