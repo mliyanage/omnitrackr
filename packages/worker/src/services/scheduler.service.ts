@@ -184,7 +184,7 @@ export class SchedulerService {
       // Specific week and day (e.g., "2nd Tuesday", "Last Friday")
       return this.nextOccurrenceOfWeekOfMonth(
         from,
-        schedule.week_of_month,
+        schedule.week_of_month[0],
         schedule.days_of_week[0],
         hour,
         minute
@@ -394,12 +394,12 @@ export class SchedulerService {
         if (date.hasSame(excludedDate, 'day')) {
           return true;
         }
-      } else if (exclusion.excluded_date_from && exclusion.excluded_date_to) {
+      } else if (exclusion.excluded_from && exclusion.excluded_to) {
         // Date range exclusion
-        const from = DateTime.fromJSDate(exclusion.excluded_date_from, {
+        const from = DateTime.fromJSDate(exclusion.excluded_from, {
           zone: date.zone,
         });
-        const to = DateTime.fromJSDate(exclusion.excluded_date_to, {
+        const to = DateTime.fromJSDate(exclusion.excluded_to, {
           zone: date.zone,
         });
 

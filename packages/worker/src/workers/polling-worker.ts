@@ -149,7 +149,7 @@ export class PollingWorker {
       // Poll watchers in batches (grouped by connection for efficiency)
       const results = await this.pollingService.pollWatchersBatch(
         watchersDue.slice(0, this.config.batchSize),
-        'scheduled'
+        'scheduler'
       );
 
       // Log summary

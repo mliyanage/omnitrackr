@@ -145,7 +145,7 @@ export class SLAMonitorService {
         const alert: SLAAlert = {
           fileTracking: record,
           watcher,
-          alertType: 'missing_file',
+          alertType: 'sla_breached',
           message: `File matching pattern "${record.expected_pattern}" was expected at ${record.expected_at} but has not arrived. SLA deadline: ${record.sla_deadline}`,
         };
 
@@ -202,7 +202,7 @@ export class SLAMonitorService {
 
     // If late, trigger alert
     if (isLate) {
-      await this.fileTrackingRepo.triggerAlert(record.id, 'late_arrival');
+      await this.fileTrackingRepo.triggerAlert(record.id, 'sla_breached');
       console.log(
         `⚠️  Late file detected: ${fileName} (expected by ${record.sla_deadline}, arrived at ${detectedAt})`
       );

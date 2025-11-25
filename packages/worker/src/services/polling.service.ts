@@ -1,4 +1,4 @@
-import { S3Client, ListObjectsV2Command, HeadBucketCommand } from '@aws-sdk/client-s3';
+import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { Knex } from 'knex';
 import {
   Watcher,
@@ -9,7 +9,6 @@ import {
   SourceConnectionRepository,
   WatcherRepository,
   WatcherLogRepository,
-  MatchRule,
 } from '@omnitrackr/shared';
 
 /**
@@ -65,7 +64,7 @@ export class PollingService {
    */
   async pollWatcher(
     watcher: Watcher,
-    triggeredBy: TriggerType = 'scheduled',
+    triggeredBy: TriggerType = 'scheduler',
     triggeredByUser?: string
   ): Promise<PollResult> {
     const startTime = Date.now();
@@ -89,7 +88,7 @@ export class PollingService {
       // Get connection details
       const connection = await this.connectionRepo.findById(
         watcher.source_connection_id
-      );
+      ) as SourceConnection | null;
 
       if (!connection) {
         throw new Error(
@@ -295,7 +294,7 @@ export class PollingService {
    */
   async pollWatchersBatch(
     watchers: Watcher[],
-    triggeredBy: TriggerType = 'scheduled'
+    triggeredBy: TriggerType = 'scheduler'
   ): Promise<PollResult[]> {
     if (watchers.length === 0) {
       return [];
