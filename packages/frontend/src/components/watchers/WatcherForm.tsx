@@ -31,23 +31,24 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ConnectionCombobox } from './ConnectionCombobox';
-import { ScheduleCombobox } from './ScheduleCombobox';
-import { DepartmentCombobox } from './DepartmentCombobox';
-import { ConnectionSheet } from './ConnectionSheet';
-import { ScheduleSheet } from './ScheduleSheet';
-import { DepartmentSheet } from './DepartmentSheet';
+import { ConnectionCombobox } from '@/components/connections/ConnectionCombobox';
+import { ScheduleCombobox } from '@/components/schedules/ScheduleCombobox';
+import { DepartmentCombobox } from '@/components/departments/DepartmentCombobox';
+import { ConnectionSheet } from '@/components/connections/ConnectionSheet';
+import { ScheduleSheet } from '@/components/schedules/ScheduleSheet';
+import { DepartmentSheet } from '@/components/departments/DepartmentSheet';
 import { createWatcher, updateWatcher } from '@/api/watchers.api';
 import type { Watcher, SourceConnection, Schedule, RefData } from '@/types';
+import { showError } from '@/lib/toast';
 
 const watcherFormSchema = z.object({
   name: z.string().min(1, 'Watcher name is required'),
   description: z.string().optional(),
   source_connection_id: z.number().min(1, 'Connection is required'),
   schedule_id: z.number().min(1, 'Schedule is required'),
-  department_id: z.number().min(1, 'Department is required'),
+  department_code: z.string().optional(),
   file_name_pattern: z.string().optional(),
-  path_pattern: z.string().optional(),
+  file_path_pattern: z.string().optional(),
   match_rule: z.enum(['exact', 'partial', 'regex']),
   direction: z.enum(['inward', 'outward', 'bidirectional']),
   sla_enabled: z.boolean().default(false),
@@ -79,9 +80,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
           description: watcher.description || '',
           source_connection_id: watcher.source_connection_id,
           schedule_id: watcher.schedule_id,
-          department_id: watcher.department_id,
+          department_code: watcher.department_code || '',
           file_name_pattern: watcher.file_name_pattern || '',
-          path_pattern: watcher.path_pattern || '',
+          file_path_pattern: watcher.file_path_pattern || '',
           match_rule: watcher.match_rule,
           direction: watcher.direction,
           sla_enabled: watcher.sla_enabled,
@@ -92,9 +93,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
           description: '',
           source_connection_id: 0,
           schedule_id: 0,
-          department_id: 0,
+          department_code: '',
           file_name_pattern: '',
-          path_pattern: '',
+          file_path_pattern: '',
           match_rule: 'partial',
           direction: 'inward',
           sla_enabled: false,
@@ -110,6 +111,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
       queryClient.invalidateQueries({ queryKey: ['watchers'] });
       onSuccess(data);
     },
+    onError: (error) => {
+      showError(error);
+    },
   });
 
   const updateMutation = useMutation({
@@ -117,6 +121,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['watchers'] });
       onSuccess(data);
+    },
+    onError: (error) => {
+      showError(error);
     },
   });
 
@@ -145,12 +152,11 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
   };
 
   const handleDepartmentCreated = (department: RefData) => {
-    form.setValue('department_id', department.id);
+    form.setValue('department_code', department.code);
     queryClient.invalidateQueries({ queryKey: ['departments'] });
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
-  const error = createMutation.error || updateMutation.error;
 
   return (
     <>
@@ -240,7 +246,7 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
 
               <FormField
                 control={form.control}
-                name="department_id"
+                name="department_code"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Department</FormLabel>
@@ -293,13 +299,13 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
 
               <FormField
                 control={form.control}
-                name="path_pattern"
+                name="file_path_pattern"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Path Pattern (Optional)</FormLabel>
                     <FormControl>
-                      <Input 
-                        placeholder="/incoming/2024/*" 
+                      <Input
+                        placeholder="/incoming/2024/*"
                         {...field}
                         className="font-mono text-sm"
                       />
@@ -416,12 +422,6 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
               )}
             </div>
           </div>
-
-          {error && (
-            <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200">
-              {(error as any).response?.data?.error?.message || 'An error occurred'}
-            </div>
-          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

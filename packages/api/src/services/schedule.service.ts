@@ -67,8 +67,31 @@ export class ScheduleService {
 
   /**
    * Create schedule
+   * If a soft-deleted schedule with the same name exists, restore and update it
    */
   async create(request: CreateScheduleRequest, createdBy?: string): Promise<Schedule> {
+    // Check if a soft-deleted schedule with this name exists
+    const deletedSchedule = await this.scheduleRepo.findDeletedByName(request.name);
+
+    if (deletedSchedule) {
+      // Restore the soft-deleted schedule and update it with new values
+      return this.scheduleRepo.restore(deletedSchedule.id, {
+        description: request.description,
+        frequency_type: request.frequency_type,
+        interval: request.interval ?? 1,
+        execution_times: request.execution_times,
+        days_of_week: request.days_of_week,
+        day_of_month: request.day_of_month,
+        week_of_month: request.week_of_month,
+        timezone: request.timezone ?? 'UTC',
+        valid_from: request.valid_from,
+        valid_until: request.valid_until,
+        enabled: request.enabled ?? true,
+        updated_by: createdBy,
+      });
+    }
+
+    // No deleted schedule found, create a new one
     return this.scheduleRepo.create<Schedule>({
       name: request.name,
       description: request.description,

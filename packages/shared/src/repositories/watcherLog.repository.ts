@@ -54,7 +54,8 @@ export class WatcherLogRepository extends BaseRepository {
   }
 
   /**
-   * Create log entry (start of poll)
+   * Create log entry
+   * Can be used to create either an in-progress entry or a completed entry
    */
   async createLogEntry(data: {
     watcher_id: number;
@@ -64,16 +65,27 @@ export class WatcherLogRepository extends BaseRepository {
     triggered_by: TriggerType;
     triggered_by_user?: string;
     poll_date: Date;
+    poll_completed_at?: Date;
+    poll_duration_ms?: number;
+    objects_scanned?: number;
+    files_detected?: number;
+    files_new?: number;
+    files_duplicate?: number;
+    api_calls_made?: number;
+    bytes_transferred?: number;
+    error_details?: any;
+    connection_status_at_poll?: string;
   }): Promise<WatcherLog> {
     const [result] = await this.db(this.tableName)
       .insert({
         ...data,
-        objects_scanned: 0,
-        files_detected: 0,
-        files_new: 0,
-        files_duplicate: 0,
-        api_calls_made: 0,
-        bytes_transferred: 0,
+        // Set defaults for fields not provided
+        objects_scanned: data.objects_scanned ?? 0,
+        files_detected: data.files_detected ?? 0,
+        files_new: data.files_new ?? 0,
+        files_duplicate: data.files_duplicate ?? 0,
+        api_calls_made: data.api_calls_made ?? 0,
+        bytes_transferred: data.bytes_transferred ?? 0,
       })
       .returning('*');
     return result;

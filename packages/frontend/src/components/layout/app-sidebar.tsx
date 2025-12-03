@@ -8,6 +8,9 @@ import {
   Settings,
   Users,
   Eye,
+  Calendar,
+  Building2,
+  Cable,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -32,9 +35,19 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    title: 'File Sources',
-    href: '/file-sources',
-    icon: Database,
+    title: 'Schedules',
+    href: '/schedules',
+    icon: Calendar,
+  },
+  {
+    title: 'Departments',
+    href: '/departments',
+    icon: Building2,
+  },
+  {
+    title: 'Connections',
+    href: '/connections',
+    icon: Cable,
   },
   {
     title: 'Inward Files',

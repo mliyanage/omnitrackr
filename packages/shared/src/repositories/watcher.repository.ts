@@ -1,4 +1,3 @@
-import { Knex } from 'knex';
 import { BaseRepository } from './base.repository';
 import {
   Watcher,
@@ -139,6 +138,31 @@ export class WatcherRepository extends BaseRepository {
   }
 
   /**
+   * Find soft-deleted watcher by name
+   */
+  async findDeletedByName(name: string): Promise<Watcher | undefined> {
+    return this.db(this.tableName)
+      .whereRaw('LOWER(name) = LOWER(?)', [name])
+      .whereNotNull('deleted_at')
+      .first();
+  }
+
+  /**
+   * Restore soft-deleted watcher and update its values
+   */
+  async restore(id: number, updateData: Partial<Watcher>): Promise<Watcher> {
+    const [result] = await this.db(this.tableName)
+      .where({ id })
+      .update({
+        ...updateData,
+        deleted_at: null,
+        updated_at: this.db.fn.now(),
+      })
+      .returning('*');
+    return result;
+  }
+
+  /**
    * Find watcher with relations
    */
   async findWithRelations(id: number): Promise<WatcherWithRelations | undefined> {
@@ -194,6 +218,7 @@ export class WatcherRepository extends BaseRepository {
     result: {
       success: boolean;
       filesDetected: number;
+      filesNew: number;
       consecutiveFailures?: number;
     }
   ): Promise<void> {
@@ -215,11 +240,11 @@ export class WatcherRepository extends BaseRepository {
              ),
              updated_at = ?
          WHERE id = ?`,
-        [now, result.filesDetected, result.filesDetected, now, watcherId]
+        [now, result.filesDetected, result.filesNew, now, watcherId]
       );
     } else {
       // Failed poll - update failure stats and potentially change status
-      const shouldMarkError = result.consecutiveFailures && result.consecutiveFailures >= 3;
+      const shouldMarkError = (result.consecutiveFailures ?? 0) >= 3;
 
       await this.db.raw(
         `UPDATE ${this.tableName}
@@ -264,7 +289,7 @@ export class WatcherRepository extends BaseRepository {
     page?: number;
     limit?: number;
   }): Promise<{
-    data: Watcher[];
+    data: any[];
     pagination: {
       page: number;
       limit: number;
@@ -272,19 +297,71 @@ export class WatcherRepository extends BaseRepository {
       totalPages: number;
     };
   }> {
-    const filters: any = { deleted_at: null };
-    if (options.source_connection_id) filters.source_connection_id = options.source_connection_id;
-    if (options.schedule_id) filters.schedule_id = options.schedule_id;
-    if (options.department_code) filters.department_code = options.department_code;
-    if (options.status) filters.status = options.status;
-    if (options.direction) filters.direction = options.direction;
+    const page = options.page || 1;
+    const limit = options.limit || 20;
+    const offset = (page - 1) * limit;
 
-    return this.paginate({
-      filters,
-      page: options.page,
-      limit: options.limit,
-      orderBy: 'name',
-      orderDirection: 'asc',
+    // Build the query with joins
+    let query = this.db(this.tableName)
+      .select(
+        `${this.tableName}.*`,
+        'source_connections.name as source_connection_name',
+        'source_connections.type as source_connection_type'
+      )
+      .leftJoin('source_connections', `${this.tableName}.source_connection_id`, 'source_connections.id')
+      .where({ [`${this.tableName}.deleted_at`]: null });
+
+    // Apply filters
+    if (options.source_connection_id) {
+      query = query.where({ [`${this.tableName}.source_connection_id`]: options.source_connection_id });
+    }
+    if (options.schedule_id) {
+      query = query.where({ [`${this.tableName}.schedule_id`]: options.schedule_id });
+    }
+    if (options.department_code) {
+      query = query.where({ [`${this.tableName}.department_code`]: options.department_code });
+    }
+    if (options.status) {
+      query = query.where({ [`${this.tableName}.status`]: options.status });
+    }
+    if (options.direction) {
+      query = query.where({ [`${this.tableName}.direction`]: options.direction });
+    }
+
+    // Get total count
+    const countQuery = query.clone().clearSelect().count('* as count');
+    const [{ count }] = await countQuery;
+    const total = Number(count);
+
+    // Get paginated data
+    const data = await query
+      .orderBy(`${this.tableName}.name`, 'asc')
+      .limit(limit)
+      .offset(offset);
+
+    // Transform data to include source_connection object
+    const transformedData = data.map((row) => {
+      const { source_connection_name, source_connection_type, ...watcher } = row;
+      return {
+        ...watcher,
+        source_connection: source_connection_name
+          ? {
+              id: watcher.source_connection_id,
+              name: source_connection_name,
+              type: source_connection_type,
+            }
+          : null,
+      };
     });
+
+    return {
+      data: transformedData,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

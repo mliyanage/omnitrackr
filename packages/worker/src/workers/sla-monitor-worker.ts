@@ -1,5 +1,6 @@
 import { Knex } from 'knex';
 import { SLAMonitorService } from '../services/sla-monitor.service';
+import { getCurrentTimestamp } from '../utils/timestamp.utils';
 
 /**
  * SLA Monitor Worker
@@ -98,7 +99,7 @@ export class SLAMonitorWorker {
     }
 
     const cycleStart = Date.now();
-    console.log(`\n📊 Starting SLA monitoring cycle at ${new Date().toISOString()}`);
+    console.log(`\n📊 Starting SLA monitoring cycle at ${getCurrentTimestamp()}`);
 
     try {
       // Step 1: Create expected file tracking records for upcoming polls

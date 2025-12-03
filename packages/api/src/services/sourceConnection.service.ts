@@ -82,13 +82,13 @@ export class SourceConnectionService {
     config: any,
     startTime: number
   ): Promise<TestSourceConnectionResponse> {
-    const { region, bucket, accessKeyId, secretAccessKey } = config;
+    const { region, bucket, access_key_id, secret_access_key } = config;
 
     const s3Client = new S3Client({
       region,
       credentials: {
-        accessKeyId,
-        secretAccessKey,
+        accessKeyId: access_key_id,
+        secretAccessKey: secret_access_key,
       },
     });
 
@@ -136,6 +136,7 @@ export class SourceConnectionService {
 
   /**
    * Create connection
+   * If a soft-deleted connection with the same name exists, restore and update it
    */
   async create(
     request: CreateSourceConnectionRequest,
@@ -149,6 +150,25 @@ export class SourceConnectionService {
 
     const connectionStatus: ConnectionStatus = testResult.success ? 'healthy' : 'failed';
 
+    // Check if a soft-deleted connection with this name exists
+    const deletedConnection = await this.repo.findDeletedByName(request.name);
+
+    if (deletedConnection) {
+      // Restore the soft-deleted connection and update it with new values
+      return this.repo.restore(deletedConnection.id, {
+        type: request.type,
+        description: request.description,
+        connection_config: request.connection_config,
+        connection_status: connectionStatus,
+        last_health_check: new Date(),
+        last_successful_connection: testResult.success ? new Date() : null,
+        health_check_error: testResult.errorMessage || null,
+        enabled: testResult.success ? (request.enabled ?? true) : false,
+        updated_by: createdBy,
+      });
+    }
+
+    // No deleted connection found, create a new one
     const connection = await this.repo.create<SourceConnection>({
       name: request.name,
       type: request.type,
@@ -158,7 +178,7 @@ export class SourceConnectionService {
       last_health_check: new Date(),
       last_successful_connection: testResult.success ? new Date() : null,
       health_check_error: testResult.errorMessage || null,
-      enabled: request.enabled ?? true,
+      enabled: testResult.success ? (request.enabled ?? true) : false,
       created_by: createdBy,
     });
 
@@ -175,10 +195,31 @@ export class SourceConnectionService {
   ): Promise<SourceConnection> {
     await this.getById(id); // Ensure exists
 
-    return this.repo.update<SourceConnection>(id, {
+    // Update connection details
+    const updated = await this.repo.update<SourceConnection>(id, {
       ...request,
       updated_by: updatedBy,
     });
+
+    // Test connection and update health status
+    const testResult = await this.testConnection({
+      type: updated.type,
+      connection_config: updated.connection_config,
+    });
+
+    const healthResult: ConnectionHealthCheckResult = {
+      connection_status: testResult.success ? 'healthy' : 'failed',
+      last_health_check: new Date(),
+      last_successful_connection: testResult.success
+        ? new Date()
+        : updated.last_successful_connection || undefined,
+      health_check_error: testResult.errorMessage,
+    };
+
+    await this.repo.updateHealthStatus(id, healthResult);
+
+    // Return the updated connection with health status
+    return this.getById(id);
   }
 
   /**

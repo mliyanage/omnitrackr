@@ -6,6 +6,7 @@ import type {
   UpdateConnectionRequest,
   TestConnectionRequest,
   TestConnectionResponse,
+  ConnectionHealthCheckResult,
 } from '@/types';
 
 /**
@@ -50,7 +51,7 @@ export const updateConnection = async (
   id: number,
   data: UpdateConnectionRequest
 ): Promise<SourceConnection> => {
-  const response = await apiClient.put<ApiResponse<SourceConnection>>(
+  const response = await apiClient.patch<ApiResponse<SourceConnection>>(
     `/api/source-connections/${id}`,
     data
   );
@@ -91,4 +92,17 @@ export const getConnectionsByType = async (type: string): Promise<SourceConnecti
     `/api/source-connections?type=${type}`
   );
   return response.data.data || [];
+};
+
+/**
+ * Check connection health and update database
+ */
+export const checkConnectionHealth = async (id: number): Promise<ConnectionHealthCheckResult> => {
+  const response = await apiClient.post<ApiResponse<ConnectionHealthCheckResult>>(
+    `/api/source-connections/${id}/health-check`
+  );
+  if (!response.data.data) {
+    throw new Error('Failed to check connection health');
+  }
+  return response.data.data;
 };

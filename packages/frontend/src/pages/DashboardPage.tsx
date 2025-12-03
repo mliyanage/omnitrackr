@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export function DashboardPage() {
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Dashboard</h2>
         <p className="text-muted-foreground">

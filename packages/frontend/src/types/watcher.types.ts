@@ -8,7 +8,7 @@
 // ============================================================================
 
 export type ConnectionType = 'S3' | 'SFTP' | 'AZURE_BLOB' | 'GCS' | 'FTP' | 'FTPS' | 'SHAREPOINT' | 'REST_API' | 'DATABASE' | 'FILE_SHARE';
-export type ConnectionStatus = 'active' | 'inactive' | 'error';
+export type ConnectionStatus = 'healthy' | 'degraded' | 'failed' | 'untested';
 
 export type FrequencyType = 'minutely' | 'hourly' | 'daily' | 'weekly' | 'monthly' | 'yearly';
 export type DayOfWeek = 'Sunday' | 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday';
@@ -60,13 +60,14 @@ export interface SourceConnection {
   name: string;
   description?: string | null;
   type: ConnectionType;
-  status: ConnectionStatus;
   connection_config: ConnectionConfig;
+  enabled: boolean;
 
-  // Test connection metadata
-  last_test_at?: string | null;
-  last_test_status?: 'success' | 'failed' | null;
-  last_test_message?: string | null;
+  // Health status fields
+  connection_status: ConnectionStatus;
+  last_health_check?: string | null;
+  last_successful_connection?: string | null;
+  health_check_error?: string | null;
 
   // Audit fields
   created_at: string;
@@ -105,6 +106,13 @@ export interface TestConnectionResponse {
   };
 }
 
+export interface ConnectionHealthCheckResult {
+  connection_status: ConnectionStatus;
+  last_health_check: Date | string;
+  last_successful_connection?: Date | string | null;
+  health_check_error?: string | null;
+}
+
 // ============================================================================
 // Schedule Types
 // ============================================================================
@@ -117,7 +125,7 @@ export interface Schedule {
 
   // Frequency configuration
   frequency_type: FrequencyType;
-  frequency_interval: number;
+  interval: number;
 
   // Time-based settings
   execution_times?: string[] | null; // Array of HH:MM times
@@ -131,8 +139,8 @@ export interface Schedule {
   week_of_month?: WeekOfMonth | null;
 
   // Date range
-  start_date?: string | null;
-  end_date?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
 
   // Audit fields
   created_at: string;
@@ -146,8 +154,8 @@ export interface ScheduleExclusion {
   schedule_id: number;
   exclusion_type: ExclusionType;
   exclusion_date?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
+  valid_from?: string | null;
+  valid_until?: string | null;
   description?: string | null;
   created_at: string;
 }
@@ -157,14 +165,14 @@ export interface CreateScheduleRequest {
   description?: string;
   enabled?: boolean;
   frequency_type: FrequencyType;
-  frequency_interval: number;
+  interval: number;
   execution_times?: string[];
   timezone: string;
   days_of_week?: DayOfWeek[];
   day_of_month?: number;
   week_of_month?: WeekOfMonth;
-  start_date?: string;
-  end_date?: string;
+  valid_from?: string;
+  valid_until?: string;
 }
 
 export interface UpdateScheduleRequest {
@@ -172,22 +180,22 @@ export interface UpdateScheduleRequest {
   description?: string;
   enabled?: boolean;
   frequency_type?: FrequencyType;
-  frequency_interval?: number;
+  interval?: number;
   execution_times?: string[];
   timezone?: string;
   days_of_week?: DayOfWeek[];
   day_of_month?: number;
   week_of_month?: WeekOfMonth;
-  start_date?: string;
-  end_date?: string;
+  valid_from?: string;
+  valid_until?: string;
 }
 
 export interface CreateScheduleExclusionRequest {
   schedule_id: number;
   exclusion_type: ExclusionType;
   exclusion_date?: string;
-  start_date?: string;
-  end_date?: string;
+  valid_from?: string;
+  valid_until?: string;
   description?: string;
 }
 
@@ -203,14 +211,14 @@ export interface Watcher {
   // Foreign keys
   source_connection_id: number;
   schedule_id: number;
-  department_id: number;
+  department_code?: string | null;
 
   // Status
   status: WatcherStatus;
 
   // File pattern matching
   file_name_pattern?: string | null;
-  path_pattern?: string | null;
+  file_path_pattern?: string | null;
   match_rule: MatchRule;
   direction: WatcherDirection;
 
@@ -244,9 +252,9 @@ export interface CreateWatcherRequest {
   description?: string;
   source_connection_id: number;
   schedule_id: number;
-  department_id: number;
+  department_code?: string;
   file_name_pattern?: string;
-  path_pattern?: string;
+  file_path_pattern?: string;
   match_rule: MatchRule;
   direction: WatcherDirection;
   sla_enabled?: boolean;
@@ -258,9 +266,9 @@ export interface UpdateWatcherRequest {
   description?: string;
   source_connection_id?: number;
   schedule_id?: number;
-  department_id?: number;
+  department_code?: string;
   file_name_pattern?: string;
-  path_pattern?: string;
+  file_path_pattern?: string;
   match_rule?: MatchRule;
   direction?: WatcherDirection;
   sla_enabled?: boolean;

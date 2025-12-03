@@ -70,7 +70,7 @@ export function ScheduleCombobox({
 
   const formatScheduleDescription = (schedule: Schedule): string => {
     const freq = schedule.frequency_type.charAt(0).toUpperCase() + schedule.frequency_type.slice(1);
-    const interval = schedule.frequency_interval > 1 ? `Every ${schedule.frequency_interval} ` : '';
+    const interval = schedule.interval > 1 ? `Every ${schedule.interval} ` : '';
     return `${interval}${freq}`;
   };
 

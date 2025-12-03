@@ -60,7 +60,7 @@ export const updateWatcher = async (
   id: number,
   data: UpdateWatcherRequest
 ): Promise<Watcher> => {
-  const response = await apiClient.put<ApiResponse<Watcher>>(
+  const response = await apiClient.patch<ApiResponse<Watcher>>(
     `/api/watchers/${id}`,
     data
   );

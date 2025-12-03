@@ -32,6 +32,7 @@ import {
 import { createConnection, updateConnection, testConnection } from '@/api/connections.api';
 import type { SourceConnection } from '@/types';
 import { useState } from 'react';
+import { showSuccess, showError } from '@/lib/toast';
 
 // S3 Configuration Schema
 const s3ConfigSchema = z.object({
@@ -116,6 +117,9 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
       queryClient.invalidateQueries({ queryKey: ['connections'] });
       onSuccess(data);
     },
+    onError: (error) => {
+      showError(error);
+    },
   });
 
   const updateMutation = useMutation({
@@ -123,6 +127,9 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['connections'] });
       onSuccess(data);
+    },
+    onError: (error) => {
+      showError(error);
     },
   });
 
@@ -145,11 +152,20 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
         connection_config: formData.connection_config,
       });
       setTestResult({ success: result.success, message: result.message });
+
+      // Show toast notification
+      if (result.success) {
+        showSuccess(result.message || 'Connection test successful');
+      } else {
+        showError(result.message || 'Connection test failed');
+      }
     } catch (error: any) {
+      const message = error.response?.data?.error?.message || 'Connection test failed';
       setTestResult({
         success: false,
-        message: error.response?.data?.error?.message || 'Connection test failed',
+        message,
       });
+      showError(message);
     } finally {
       setIsTesting(false);
     }
@@ -369,7 +385,6 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
-  const error = createMutation.error || updateMutation.error;
 
   return (
     <Form {...form}>
@@ -464,12 +479,6 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
             }`}
           >
             {testResult.message}
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200">
-            {(error as any).response?.data?.error?.message || 'An error occurred'}
           </div>
         )}
 

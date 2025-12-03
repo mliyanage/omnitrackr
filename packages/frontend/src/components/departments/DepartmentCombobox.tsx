@@ -20,8 +20,8 @@ import {
 import { getDepartments } from '@/api/refData.api';
 
 interface DepartmentComboboxProps {
-  value?: number;
-  onChange: (value: number) => void;
+  value?: string;
+  onChange: (value: string) => void;
   onCreateNew: () => void;
   disabled?: boolean;
   placeholder?: string;
@@ -49,7 +49,7 @@ export function DepartmentCombobox({
     (dept) => (dept.metadata as any)?.is_active !== false
   );
 
-  const selectedDepartment = activeDepartments.find((dept) => dept.id === value);
+  const selectedDepartment = activeDepartments.find((dept) => dept.code === value);
 
   const filteredDepartments = activeDepartments.filter((dept) => {
     const searchLower = searchQuery.toLowerCase();
@@ -61,8 +61,8 @@ export function DepartmentCombobox({
     );
   });
 
-  const handleSelect = (departmentId: number) => {
-    onChange(departmentId);
+  const handleSelect = (departmentCode: string) => {
+    onChange(departmentCode);
     setOpen(false);
     setSearchQuery('');
   };
@@ -113,13 +113,13 @@ export function DepartmentCombobox({
                 {filteredDepartments.map((department) => (
                   <CommandItem
                     key={department.id}
-                    value={department.id.toString()}
-                    onSelect={() => handleSelect(department.id)}
+                    value={department.code}
+                    onSelect={() => handleSelect(department.code)}
                   >
                     <Check
                       className={cn(
                         'mr-2 h-4 w-4',
-                        value === department.id ? 'opacity-100' : 'opacity-0'
+                        value === department.code ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                     <div>

@@ -2,6 +2,7 @@ import { Knex } from 'knex';
 import { WatcherRepository, ScheduleRepository } from '@omnitrackr/shared';
 import { SchedulerService } from '../services/scheduler.service';
 import { PollingService } from '../services/polling.service';
+import { getCurrentTimestamp } from '../utils/timestamp.utils';
 
 /**
  * Polling Worker
@@ -102,7 +103,7 @@ export class PollingWorker {
     }
 
     const cycleStart = Date.now();
-    console.log(`\n🔄 Starting polling cycle at ${new Date().toISOString()}`);
+    console.log(`\n🔄 Starting polling cycle at ${getCurrentTimestamp()}`);
 
     try {
       // Get all active watchers

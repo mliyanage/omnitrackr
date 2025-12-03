@@ -94,18 +94,41 @@ export class SchedulerService {
 
   /**
    * Calculate next run for minutely frequency
+   * Aligns to fixed intervals (e.g., :00, :15, :30, :45 for 15-min interval)
+   * to prevent duplicate record creation
    */
   private calculateMinutely(schedule: Schedule, from: DateTime): DateTime {
     const interval = schedule.interval || 1;
-    return from.plus({ minutes: interval });
+
+    // Calculate minutes since midnight
+    const minutesSinceMidnight = from.hour * 60 + from.minute;
+
+    // Find the next interval boundary
+    // For example, if interval is 15 and current time is 10:07,
+    // next boundary is 10:15 (which is 615 minutes since midnight)
+    const nextIntervalMinutes = Math.ceil((minutesSinceMidnight + 1) / interval) * interval;
+
+    // Calculate how many minutes to add
+    const minutesToAdd = nextIntervalMinutes - minutesSinceMidnight;
+
+    // Return time aligned to the interval boundary with seconds/ms zeroed
+    return from.plus({ minutes: minutesToAdd }).set({ second: 0, millisecond: 0 });
   }
 
   /**
    * Calculate next run for hourly frequency
+   * Aligns to fixed hour intervals
    */
   private calculateHourly(schedule: Schedule, from: DateTime): DateTime {
     const interval = schedule.interval || 1;
-    return from.plus({ hours: interval });
+
+    // Find the next hour boundary
+    const currentHour = from.hour;
+    const nextIntervalHour = Math.ceil((currentHour + 1) / interval) * interval;
+    const hoursToAdd = nextIntervalHour - currentHour;
+
+    // Return time aligned to the hour boundary with minutes/seconds/ms zeroed
+    return from.plus({ hours: hoursToAdd }).set({ minute: 0, second: 0, millisecond: 0 });
   }
 
   /**

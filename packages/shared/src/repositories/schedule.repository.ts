@@ -82,6 +82,31 @@ export class ScheduleRepository extends BaseRepository {
   }
 
   /**
+   * Find soft-deleted schedule by name
+   */
+  async findDeletedByName(name: string): Promise<Schedule | undefined> {
+    return this.db(this.tableName)
+      .whereRaw('LOWER(name) = LOWER(?)', [name])
+      .whereNotNull('deleted_at')
+      .first();
+  }
+
+  /**
+   * Restore soft-deleted schedule and update its values
+   */
+  async restore(id: number, updateData: Partial<Schedule>): Promise<Schedule> {
+    const [result] = await this.db(this.tableName)
+      .where({ id })
+      .update({
+        ...updateData,
+        deleted_at: null,
+        updated_at: this.db.fn.now(),
+      })
+      .returning('*');
+    return result;
+  }
+
+  /**
    * Find with pagination
    */
   async findWithFilters(options: {

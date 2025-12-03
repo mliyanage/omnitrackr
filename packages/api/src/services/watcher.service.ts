@@ -72,6 +72,7 @@ export class WatcherService {
 
   /**
    * Create watcher
+   * If a soft-deleted watcher with the same name exists, restore and update it
    */
   async create(request: CreateWatcherRequest, createdBy?: string): Promise<Watcher> {
     // Validate connection exists
@@ -88,6 +89,29 @@ export class WatcherService {
       }
     }
 
+    // Check if a soft-deleted watcher with this name exists
+    const deletedWatcher = await this.watcherRepo.findDeletedByName(request.name);
+
+    if (deletedWatcher) {
+      // Restore the soft-deleted watcher and update it with new values
+      return this.watcherRepo.restore(deletedWatcher.id, {
+        source_connection_id: request.source_connection_id,
+        schedule_id: request.schedule_id,
+        department_code: request.department_code,
+        description: request.description,
+        file_name_pattern: request.file_name_pattern,
+        file_path_pattern: request.file_path_pattern,
+        match_rule: request.match_rule ?? 'partial',
+        sla_enabled: request.sla_enabled ?? false,
+        sla_threshold_minutes: request.sla_threshold_minutes,
+        direction: request.direction ?? 'inward',
+        owner_team: request.owner_team,
+        status: request.status ?? 'active',
+        updated_by: createdBy,
+      });
+    }
+
+    // No deleted watcher found, create a new one
     return this.watcherRepo.create<Watcher>({
       source_connection_id: request.source_connection_id,
       schedule_id: request.schedule_id,

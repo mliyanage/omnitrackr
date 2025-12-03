@@ -24,8 +24,9 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { createRefData, getDepartments } from '@/api/refData.api';
+import { createRefData, updateRefData, getDepartments } from '@/api/refData.api';
 import type { RefData } from '@/types';
+import { showError } from '@/lib/toast';
 
 const departmentFormSchema = z.object({
   name: z.string().min(1, 'Department name is required'),
@@ -83,6 +84,21 @@ export function DepartmentForm({
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       onSuccess(data);
     },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ code, data }: { code: string; data: Partial<typeof createRefData> }) =>
+      updateRefData(code, data),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
+      onSuccess(data);
+    },
+    onError: (error) => {
+      showError(error);
+    },
   });
 
   // Check for duplicate department name
@@ -123,7 +139,6 @@ export function DepartmentForm({
     }
 
     const payload = {
-      code: `DEPARTMENT:${data.name}`,
       value1: data.name,
       value2: data.abbreviation,
       metadata: {
@@ -133,11 +148,20 @@ export function DepartmentForm({
       },
     };
 
-    createMutation.mutate(payload);
+    if (isEditing) {
+      updateMutation.mutate({
+        code: department!.code,
+        data: payload,
+      });
+    } else {
+      createMutation.mutate({
+        code: `DEPARTMENT:${data.name}`,
+        ...payload,
+      });
+    }
   };
 
-  const isLoading = createMutation.isPending;
-  const error = createMutation.error;
+  const isLoading = createMutation.isPending || updateMutation.isPending;
 
   return (
     <Form {...form}>
@@ -263,13 +287,6 @@ export function DepartmentForm({
             />
           </CardContent>
         </Card>
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200">
-            {(error as any).response?.data?.error?.message ||
-              'An error occurred'}
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 pt-4">
           <Button

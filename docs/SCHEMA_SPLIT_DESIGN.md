@@ -442,6 +442,53 @@ watcher_logs {
 - `watcher_logs` = **Reactive**: "We polled, here's what we found"
 - `file_tracking` = **Proactive**: "We expect this file, alert if missing"
 
+  1. Why file_path, file_name, file_size are NULL ✅ This is CORRECT behavior
+
+  When the SLA monitor creates expected file tracking records (sla-monitor.service.ts:93-100), it only sets:
+  - watcher_id
+  - expected_pattern (from watcher's file_name_pattern)
+  - expected_at (calculated next run time)
+  - expected_schedule (schedule name)
+  - sla_threshold_minutes
+  - sla_deadline
+  - tracking_status = 'pending'
+
+  The file details are intentionally NULL because:
+  - These records represent future expected files that haven't arrived yet
+  - They're placeholders waiting for actual file arrivals
+  - File details only get populated when:
+    - The polling worker detects a matching file
+    - The matchDetectedFile method is called (sla-monitor.service.ts:169-214)
+    - The tracking status changes from 'pending' to 'arrived' or 'late'
+
+  Think of it like this: The SLA monitor creates "reservations" for expected files. The actual file details get filled in when the files are
+  detected by the polling worker.
+
+  ---
+  2. How expected_at and sla_deadline are Determined
+
+  From sla-monitor.service.ts:64-78:
+
+  // Step 1: Calculate next scheduled run time
+  const nextRun = await this.schedulerService.calculateNextRunTime(schedule, now);
+  // Returns the next execution time based on:
+  // - Schedule frequency (minutely, hourly, daily, weekly, monthly)
+  // - Schedule timezone (converts to schedule's timezone, then back to UTC)
+  // - valid_from/valid_until constraints
+  // - Exclusions (holidays, blackouts)
+
+  // Step 2: Calculate SLA deadline
+  const slaThresholdMinutes = watcher.sla_threshold_minutes || 60;
+  const slaDeadline = DateTime.fromJSDate(nextRun)
+    .plus({ minutes: slaThresholdMinutes })
+    .toJSDate();
+
+  Example:
+  - Schedule: Daily at 02:00 AM EST
+  - expected_at: 2025-12-02 07:00:00 UTC (2 AM EST = 7 AM UTC)
+  - SLA threshold: 20 minutes
+  - sla_deadline: 2025-12-02 07:20:00 UTC
+  
 ```typescript
 file_tracking {
   // Primary Key

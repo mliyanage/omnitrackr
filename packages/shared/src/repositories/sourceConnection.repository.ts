@@ -97,6 +97,31 @@ export class SourceConnectionRepository extends BaseRepository {
   }
 
   /**
+   * Find soft-deleted connection by name
+   */
+  async findDeletedByName(name: string): Promise<SourceConnection | undefined> {
+    return this.db(this.tableName)
+      .whereRaw('LOWER(name) = LOWER(?)', [name])
+      .whereNotNull('deleted_at')
+      .first();
+  }
+
+  /**
+   * Restore soft-deleted connection and update its values
+   */
+  async restore(id: number, updateData: Partial<SourceConnection>): Promise<SourceConnection> {
+    const [result] = await this.db(this.tableName)
+      .where({ id })
+      .update({
+        ...updateData,
+        deleted_at: null,
+        updated_at: this.db.fn.now(),
+      })
+      .returning('*');
+    return result;
+  }
+
+  /**
    * Find connections with expiring credentials
    */
   async findExpiringCredentials(withinDays: number): Promise<SourceConnection[]> {

@@ -1,6 +1,6 @@
 export function InwardFilesPage() {
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Inward Files</h2>
         <p className="text-muted-foreground">

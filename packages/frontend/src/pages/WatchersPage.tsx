@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { getWatcherStatusBadge, getPollStatusBadge } from '@/lib/badgeHelpers';
 import {
   Table,
   TableBody,
@@ -33,9 +34,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WatcherSheet } from '@/components/watchers/WatcherSheet';
 import { getWatchers, deleteWatcher, triggerWatcherPoll } from '@/api/watchers.api';
 import { getDepartments } from '@/api/refData.api';
+import { showSuccess, showError } from '@/lib/toast';
 import type { Watcher } from '@/types';
 
 export default function WatchersPage() {
@@ -44,6 +47,11 @@ export default function WatchersPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [watcherToDelete, setWatcherToDelete] = useState<{
+    id: number;
+    name: string;
+  } | null>(null);
 
   const queryClient = useQueryClient();
 
@@ -61,6 +69,10 @@ export default function WatchersPage() {
     mutationFn: deleteWatcher,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['watchers'] });
+      showSuccess('Watcher deleted successfully');
+    },
+    onError: (error) => {
+      showError(error);
     },
   });
 
@@ -68,6 +80,10 @@ export default function WatchersPage() {
     mutationFn: triggerWatcherPoll,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['watchers'] });
+      showSuccess('Watcher poll triggered successfully');
+    },
+    onError: (error) => {
+      showError(error);
     },
   });
 
@@ -81,9 +97,15 @@ export default function WatchersPage() {
     setIsSheetOpen(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Are you sure you want to delete this watcher?')) {
-      await deleteMutation.mutateAsync(id);
+  const handleDeleteClick = (id: number, name: string) => {
+    setWatcherToDelete({ id, name });
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (watcherToDelete) {
+      await deleteMutation.mutateAsync(watcherToDelete.id);
+      setWatcherToDelete(null);
     }
   };
 
@@ -93,6 +115,11 @@ export default function WatchersPage() {
 
   const handleSheetSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['watchers'] });
+    showSuccess(
+      selectedWatcher
+        ? 'Watcher updated successfully'
+        : 'Watcher created successfully'
+    );
   };
 
   // Filter watchers
@@ -111,32 +138,6 @@ export default function WatchersPage() {
 
     return matchesSearch && matchesStatus && matchesDepartment;
   });
-
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'default';
-      case 'inactive':
-        return 'secondary';
-      case 'error':
-        return 'destructive';
-      default:
-        return 'outline';
-    }
-  };
-
-  const getPollStatusBadgeVariant = (status: string | null) => {
-    switch (status) {
-      case 'success':
-        return 'default';
-      case 'failed':
-        return 'destructive';
-      case 'in_progress':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
 
   const formatLastCheck = (dateString: string | null | undefined) => {
     if (!dateString) return 'Never';
@@ -248,9 +249,10 @@ export default function WatchersPage() {
                     </div>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={getStatusBadgeVariant(watcher.status)}>
-                      {watcher.status}
-                    </Badge>
+                    {(() => {
+                      const badge = getWatcherStatusBadge(watcher.status);
+                      return <Badge variant={badge.variant}>{badge.label}</Badge>;
+                    })()}
                   </TableCell>
                   <TableCell>
                     {watcher.source_connection?.name || `#${watcher.source_connection_id}`}
@@ -266,16 +268,10 @@ export default function WatchersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    {watcher.last_check_status ? (
-                      <Badge
-                        variant={getPollStatusBadgeVariant(watcher.last_check_status)}
-                        className="text-xs"
-                      >
-                        {watcher.last_check_status}
-                      </Badge>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">-</span>
-                    )}
+                    {(() => {
+                      const badge = getPollStatusBadge(watcher.last_check_status);
+                      return <Badge variant={badge.variant} className="text-xs">{badge.label}</Badge>;
+                    })()}
                   </TableCell>
                   <TableCell>
                     <span className="text-sm font-medium">
@@ -283,7 +279,7 @@ export default function WatchersPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <span className="text-sm">{watcher.total_files_detected}</span>
+                    <span className="text-sm">{watcher.total_files_detected ?? 0}</span>
                   </TableCell>
                   <TableCell>
                     <DropdownMenu>
@@ -304,7 +300,7 @@ export default function WatchersPage() {
                           Edit
                         </DropdownMenuItem>
                         <DropdownMenuItem
-                          onClick={() => handleDelete(watcher.id)}
+                          onClick={() => handleDeleteClick(watcher.id, watcher.name)}
                           className="text-destructive"
                         >
                           <Trash2 className="mr-2 h-4 w-4" />
@@ -335,7 +331,7 @@ export default function WatchersPage() {
         <div className="rounded-lg border p-4">
           <div className="text-sm text-muted-foreground">Total Files Detected</div>
           <div className="text-2xl font-bold">
-            {watchers.reduce((sum, w) => sum + w.total_files_detected, 0)}
+            {watchers.reduce((sum, w) => sum + (w.total_files_detected ?? 0), 0)}
           </div>
         </div>
         <div className="rounded-lg border p-4">
@@ -358,6 +354,18 @@ export default function WatchersPage() {
         onOpenChange={setIsSheetOpen}
         watcher={selectedWatcher}
         onSuccess={handleSheetSuccess}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Watcher"
+        description={`Are you sure you want to delete "${watcherToDelete?.name}"? This action cannot be undone.`}
+        onConfirm={handleDeleteConfirm}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="destructive"
       />
     </div>
   );

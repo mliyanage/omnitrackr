@@ -10,6 +10,7 @@ import {
   WatcherRepository,
   WatcherLogRepository,
 } from '@omnitrackr/shared';
+import { SLAMonitorService } from './sla-monitor.service';
 
 /**
  * Polling result for a single watcher
@@ -48,11 +49,13 @@ export class PollingService {
   private connectionRepo: SourceConnectionRepository;
   private watcherRepo: WatcherRepository;
   private watcherLogRepo: WatcherLogRepository;
+  private slaMonitorService: SLAMonitorService;
 
   constructor(private db: Knex) {
     this.connectionRepo = new SourceConnectionRepository(db);
     this.watcherRepo = new WatcherRepository(db);
     this.watcherLogRepo = new WatcherLogRepository(db);
+    this.slaMonitorService = new SLAMonitorService(db);
   }
 
   /**
@@ -70,19 +73,8 @@ export class PollingService {
     const startTime = Date.now();
     const pollStartedAt = new Date();
 
-    // Mark poll as in progress
+    // Mark poll as in progress (updates watchers.last_check_status)
     await this.watcherRepo.markPollInProgress(watcher.id);
-
-    // Create log entry
-    const logEntry = await this.watcherLogRepo.createLogEntry({
-      watcher_id: watcher.id,
-      source_connection_id: watcher.source_connection_id,
-      poll_started_at: pollStartedAt,
-      poll_status: 'in_progress' as PollStatus,
-      triggered_by: triggeredBy,
-      triggered_by_user: triggeredByUser,
-      poll_date: pollStartedAt,
-    });
 
     try {
       // Get connection details
@@ -96,11 +88,14 @@ export class PollingService {
         );
       }
 
+      // Get the last check time to determine which files are new
+      const lastCheckAt = watcher.last_check_at ? new Date(watcher.last_check_at) : null;
+
       // Execute poll based on connection type
       let result: PollResult;
       switch (connection.type) {
         case 'S3':
-          result = await this.pollS3(watcher, connection, startTime);
+          result = await this.pollS3(watcher, connection, startTime, lastCheckAt);
           break;
         case 'SFTP':
         case 'FTP':
@@ -111,8 +106,11 @@ export class PollingService {
           throw new Error(`Unsupported connection type: ${connection.type}`);
       }
 
-      // Complete log entry
-      await this.watcherLogRepo.completeLogEntry(logEntry.id, {
+      // Create log entry for completed poll
+      await this.watcherLogRepo.createLogEntry({
+        watcher_id: watcher.id,
+        source_connection_id: watcher.source_connection_id,
+        poll_started_at: pollStartedAt,
         poll_completed_at: new Date(),
         poll_duration_ms: result.durationMs,
         poll_status: 'success' as PollStatus,
@@ -123,21 +121,33 @@ export class PollingService {
         api_calls_made: result.apiCallsMade,
         bytes_transferred: result.bytesTransferred,
         connection_status_at_poll: connection.connection_status,
+        triggered_by: triggeredBy,
+        triggered_by_user: triggeredByUser,
+        poll_date: pollStartedAt,
       });
 
       // Update watcher statistics
       await this.watcherRepo.updatePollStatistics(watcher.id, {
         success: true,
         filesDetected: result.filesDetected,
+        filesNew: result.filesNew,
       });
+
+      // Match detected files to SLA file_tracking records if SLA is enabled
+      if (watcher.sla_enabled && result.detectedFiles && result.detectedFiles.length > 0) {
+        await this.matchFilesToSLATracking(watcher, result.detectedFiles, pollStartedAt);
+      }
 
       return result;
     } catch (error) {
       const durationMs = Date.now() - startTime;
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      // Complete log entry with error
-      await this.watcherLogRepo.completeLogEntry(logEntry.id, {
+      // Create log entry for failed poll
+      await this.watcherLogRepo.createLogEntry({
+        watcher_id: watcher.id,
+        source_connection_id: watcher.source_connection_id,
+        poll_started_at: pollStartedAt,
         poll_completed_at: new Date(),
         poll_duration_ms: durationMs,
         poll_status: 'failed' as PollStatus,
@@ -146,12 +156,16 @@ export class PollingService {
         files_new: 0,
         files_duplicate: 0,
         error_details: { message: errorMessage, stack: (error as Error).stack },
+        triggered_by: triggeredBy,
+        triggered_by_user: triggeredByUser,
+        poll_date: pollStartedAt,
       });
 
       // Update watcher statistics with failure
       await this.watcherRepo.updatePollStatistics(watcher.id, {
         success: false,
         filesDetected: 0,
+        filesNew: 0,
       });
 
       return {
@@ -175,14 +189,15 @@ export class PollingService {
   private async pollS3(
     watcher: Watcher,
     connection: SourceConnection,
-    startTime: number
+    startTime: number,
+    lastCheckAt: Date | null
   ): Promise<PollResult> {
     const config = connection.connection_config as any;
     const s3Client = new S3Client({
       region: config.region,
       credentials: {
-        accessKeyId: config.accessKeyId,
-        secretAccessKey: config.secretAccessKey,
+        accessKeyId: config.access_key_id,
+        secretAccessKey: config.secret_access_key,
       },
     });
 
@@ -192,7 +207,16 @@ export class PollingService {
     const detectedFiles: DetectedFile[] = [];
 
     // List objects in bucket with optional prefix
-    const prefix = watcher.file_path_pattern || config.prefix || '';
+    // Strip leading slash from path pattern (S3 keys don't start with /)
+    let prefix = watcher.file_path_pattern || config.path_prefix || '';
+    if (prefix.startsWith('/')) {
+      prefix = prefix.substring(1);
+    }
+    // Ensure prefix ends with / if it's not empty (to match directory contents only)
+    if (prefix && !prefix.endsWith('/')) {
+      prefix = prefix + '/';
+    }
+
     let continuationToken: string | undefined;
 
     do {
@@ -217,12 +241,17 @@ export class PollingService {
 
           // Check if file matches the watcher's pattern
           if (this.matchesPattern(fileName, watcher)) {
+            const fileLastModified = obj.LastModified || new Date();
+            // File is "new" if it was modified after the last check
+            // Compare timestamps in UTC to avoid timezone issues
+            const isNew = !lastCheckAt || fileLastModified.getTime() > lastCheckAt.getTime();
+
             detectedFiles.push({
               fileName,
               filePath: obj.Key,
               fileSize: obj.Size || 0,
-              lastModified: obj.LastModified || new Date(),
-              isNew: true, // TODO: Check against inward_files table
+              lastModified: fileLastModified,
+              isNew,
             });
 
             bytesTransferred += obj.Size || 0;
@@ -233,10 +262,9 @@ export class PollingService {
       continuationToken = response.NextContinuationToken;
     } while (continuationToken);
 
-    // Determine which files are new vs duplicates
-    // TODO: Query inward_files table to check for duplicates
-    const filesNew = detectedFiles.length;
-    const filesDuplicate = 0;
+    // Determine which files are new vs duplicates based on last modified date
+    const filesNew = detectedFiles.filter(f => f.isNew).length;
+    const filesDuplicate = detectedFiles.filter(f => !f.isNew).length;
 
     return {
       watcherId: watcher.id,
@@ -268,7 +296,18 @@ export class PollingService {
         return fileName === pattern;
 
       case 'partial':
-        return fileName.includes(pattern);
+        // Convert wildcard pattern to regex
+        // Escape special regex chars except *, then convert * to .*
+        const regexPattern = pattern
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&')  // Escape special chars
+          .replace(/\*/g, '.*');                    // Convert * to .*
+        try {
+          const regex = new RegExp(`^${regexPattern}$`);
+          return regex.test(fileName);
+        } catch (error) {
+          console.error(`Invalid wildcard pattern: ${pattern}`, error);
+          return false;
+        }
 
       case 'regex':
         try {
@@ -323,6 +362,51 @@ export class PollingService {
     }
 
     return allResults;
+  }
+
+  /**
+   * Match detected files to SLA file_tracking records
+   * This links files found during polling to expected file records created by SLA monitor
+   * Only processes new files (not previously seen) to avoid duplicate matching
+   */
+  private async matchFilesToSLATracking(
+    watcher: Watcher,
+    detectedFiles: DetectedFile[],
+    detectedAt: Date
+  ): Promise<void> {
+    // Filter to only new files
+    const newFiles = detectedFiles.filter(f => f.isNew);
+
+    if (newFiles.length === 0) {
+      console.log(`   ℹ️  No new files to match to SLA tracking`);
+      return;
+    }
+
+    console.log(`   🔗 Matching ${newFiles.length} new files to SLA tracking records...`);
+
+    let matchedCount = 0;
+    for (const file of newFiles) {
+      try {
+        // Use file's actual upload/modified time from S3 for accurate SLA tracking
+        await this.slaMonitorService.matchDetectedFile(
+          watcher.id,
+          file.fileName,
+          file.filePath,
+          file.fileSize,
+          file.lastModified // Use S3 LastModified time, not poll detection time
+        );
+        matchedCount++;
+      } catch (error) {
+        console.error(
+          `   ⚠️  Failed to match file ${file.fileName} to SLA tracking:`,
+          error instanceof Error ? error.message : error
+        );
+      }
+    }
+
+    if (matchedCount > 0) {
+      console.log(`   ✅ Matched ${matchedCount}/${newFiles.length} files to SLA tracking records`);
+    }
   }
 
   /**

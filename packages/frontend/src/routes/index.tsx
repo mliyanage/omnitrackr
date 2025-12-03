@@ -4,6 +4,10 @@ import { DashboardPage } from '@/pages/DashboardPage';
 import { FileSourcesPage } from '@/pages/FileSourcesPage';
 import { InwardFilesPage } from '@/pages/InwardFilesPage';
 import WatchersPage from '@/pages/WatchersPage';
+import ConnectionsPage from '@/pages/ConnectionsPage';
+import SchedulesPage from '@/pages/SchedulesPage';
+import DepartmentsPage from '@/pages/DepartmentsPage';
+import FileTrackingPage from '@/pages/FileTrackingPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -28,13 +32,20 @@ export const router = createBrowserRouter([
         element: <WatchersPage />,
       },
       {
+        path: 'connections',
+        element: <ConnectionsPage />,
+      },
+      {
+        path: 'schedules',
+        element: <SchedulesPage />,
+      },
+      {
+        path: 'departments',
+        element: <DepartmentsPage />,
+      },
+      {
         path: 'file-tracking',
-        element: (
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight">File Tracking</h2>
-            <p className="text-muted-foreground">Coming soon...</p>
-          </div>
-        ),
+        element: <FileTrackingPage />,
       },
       {
         path: 'notifications',

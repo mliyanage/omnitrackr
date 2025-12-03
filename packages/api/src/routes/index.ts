@@ -4,6 +4,7 @@ import sourceConnectionRoutes from './sourceConnection.routes';
 import scheduleRoutes from './schedule.routes';
 import watcherRoutes from './watcher.routes';
 import refDataRoutes from './refData.routes';
+import fileTrackingRoutes from './fileTracking.routes';
 
 const router = Router();
 
@@ -31,10 +32,10 @@ router.use('/source-connections', sourceConnectionRoutes);
 router.use('/schedules', scheduleRoutes);
 router.use('/watchers', watcherRoutes);
 router.use('/ref-data', refDataRoutes);
+router.use('/file-tracking', fileTrackingRoutes);
 
 // TODO: Add more routes as we build them
 // router.use('/watcher-logs', watcherLogRoutes);
-// router.use('/file-tracking', fileTrackingRoutes);
 // router.use('/notifications', notificationRoutes);
 
 export default router;

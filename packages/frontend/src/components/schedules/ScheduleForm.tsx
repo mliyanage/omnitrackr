@@ -34,13 +34,14 @@ import { createSchedule, updateSchedule } from '@/api/schedules.api';
 import { getTimezones } from '@/api/refData.api';
 import type { Schedule, DayOfWeek, WeekOfMonth } from '@/types';
 import { useState } from 'react';
+import { showError } from '@/lib/toast';
 
 const scheduleFormSchema = z.object({
   name: z.string().min(1, 'Schedule name is required'),
   description: z.string().optional(),
   enabled: z.boolean().default(true),
   frequency_type: z.enum(['minutely', 'hourly', 'daily', 'weekly', 'monthly', 'yearly']),
-  frequency_interval: z.coerce.number().int().min(1, 'Interval must be at least 1'),
+  interval: z.coerce.number().int().min(1, 'Interval must be at least 1'),
   execution_times: z.array(z.string()).optional(),
   timezone: z.string().min(1, 'Timezone is required'),
   days_of_week: z.array(z.string()).optional(),
@@ -48,8 +49,8 @@ const scheduleFormSchema = z.object({
     message: "Must be 1-31 or -1 for last day of month"
   }).optional().nullable(),
   week_of_month: z.enum(['first', 'second', 'third', 'fourth', 'last']).optional().nullable(),
-  start_date: z.string().optional(),
-  end_date: z.string().optional(),
+  valid_from: z.string().optional(),
+  valid_until: z.string().optional(),
 });
 
 type ScheduleFormValues = z.infer<typeof scheduleFormSchema>;
@@ -97,28 +98,28 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
           description: schedule.description || '',
           enabled: schedule.enabled,
           frequency_type: schedule.frequency_type,
-          frequency_interval: schedule.frequency_interval,
+          interval: schedule.interval,
           execution_times: schedule.execution_times || [],
           timezone: schedule.timezone,
           days_of_week: schedule.days_of_week || [],
           day_of_month: schedule.day_of_month,
           week_of_month: schedule.week_of_month,
-          start_date: schedule.start_date || '',
-          end_date: schedule.end_date || '',
+          valid_from: schedule.valid_from || undefined,
+          valid_until: schedule.valid_until || undefined,
         }
       : {
           name: '',
           description: '',
           enabled: true,
           frequency_type: 'daily',
-          frequency_interval: 1,
+          interval: 1,
           execution_times: [],
           timezone: 'America/New_York',
           days_of_week: [],
           day_of_month: null,
           week_of_month: null,
-          start_date: '',
-          end_date: '',
+          valid_from: undefined,
+          valid_until: undefined,
         },
   });
 
@@ -132,6 +133,9 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
       onSuccess(data);
     },
+    onError: (error) => {
+      showError(error);
+    },
   });
 
   const updateMutation = useMutation({
@@ -139,6 +143,9 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['schedules'] });
       onSuccess(data);
+    },
+    onError: (error) => {
+      showError(error);
     },
   });
 
@@ -158,6 +165,9 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
         data.frequency_type === 'monthly' && data.days_of_week && data.days_of_week.length > 0
           ? data.week_of_month
           : undefined,
+      // Convert empty date strings to undefined
+      valid_from: data.valid_from && data.valid_from.trim() !== '' ? data.valid_from : undefined,
+      valid_until: data.valid_until && data.valid_until.trim() !== '' ? data.valid_until : undefined,
     };
 
     if (isEditing) {
@@ -319,7 +329,6 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
   );
 
   const isLoading = createMutation.isPending || updateMutation.isPending;
-  const error = createMutation.error || updateMutation.error;
 
   return (
     <Form {...form}>
@@ -421,7 +430,7 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
 
               <FormField
                 control={form.control}
-                name="frequency_interval"
+                name="interval"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Interval</FormLabel>
@@ -555,7 +564,7 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="start_date"
+                name="valid_from"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Start Date (Optional)</FormLabel>
@@ -570,7 +579,7 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
 
               <FormField
                 control={form.control}
-                name="end_date"
+                name="valid_until"
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>End Date (Optional)</FormLabel>
@@ -585,12 +594,6 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
             </div>
           </CardContent>
         </Card>
-
-        {error && (
-          <div className="rounded-md bg-red-50 p-3 text-sm text-red-800 border border-red-200">
-            {(error as any).response?.data?.error?.message || 'An error occurred'}
-          </div>
-        )}
 
         <div className="flex justify-end gap-3 pt-4">
           <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading}>

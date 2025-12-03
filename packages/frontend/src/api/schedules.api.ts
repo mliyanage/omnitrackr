@@ -50,7 +50,7 @@ export const updateSchedule = async (
   id: number,
   data: UpdateScheduleRequest
 ): Promise<Schedule> => {
-  const response = await apiClient.put<ApiResponse<Schedule>>(
+  const response = await apiClient.patch<ApiResponse<Schedule>>(
     `/api/schedules/${id}`,
     data
   );
