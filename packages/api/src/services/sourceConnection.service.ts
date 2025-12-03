@@ -82,13 +82,32 @@ export class SourceConnectionService {
     config: any,
     startTime: number
   ): Promise<TestSourceConnectionResponse> {
-    const { region, bucket, access_key_id, secret_access_key } = config;
+    // Support both camelCase (type definition) and snake_case (database storage)
+    const region = config.region;
+    const bucket = config.bucket;
+    const accessKeyId = config.accessKeyId || config.access_key_id;
+    const secretAccessKey = config.secretAccessKey || config.secret_access_key;
+
+    console.log('[S3 Test] Config keys:', Object.keys(config));
+    console.log('[S3 Test] Extracted accessKeyId:', accessKeyId ? '***' + accessKeyId.slice(-4) : 'undefined');
+    console.log('[S3 Test] Extracted secretAccessKey:', secretAccessKey ? '***' + secretAccessKey.slice(-4) : 'undefined');
+
+    if (!accessKeyId || !secretAccessKey) {
+      return {
+        success: false,
+        canAuthenticate: false,
+        canAccess: false,
+        canList: false,
+        errorMessage: 'Missing AWS credentials in configuration',
+        latencyMs: Date.now() - startTime,
+      };
+    }
 
     const s3Client = new S3Client({
       region,
       credentials: {
-        accessKeyId: access_key_id,
-        secretAccessKey: secret_access_key,
+        accessKeyId,
+        secretAccessKey,
       },
     });
 
