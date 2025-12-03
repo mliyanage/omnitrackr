@@ -37,12 +37,12 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test -- --workspace=@omnitrackr/api --workspace=@omnitrackr/shared
+        run: npm run test -- --filter=@omnitrackr/api --filter=@omnitrackr/shared
         env:
           NODE_ENV: test
 
       - name: Run linter
-        run: npm run lint -- --workspace=@omnitrackr/api --workspace=@omnitrackr/shared
+        run: npm run lint -- --filter=@omnitrackr/api --filter=@omnitrackr/shared
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
