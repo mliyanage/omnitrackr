@@ -42,7 +42,7 @@ export const handlers = [
   }),
 
   http.post(`${API_URL}/source-connections`, async ({ request }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       success: true,
       data: { ...mockConnection, ...body, id: Math.floor(Math.random() * 1000) },
@@ -50,7 +50,7 @@ export const handlers = [
   }),
 
   http.put(`${API_URL}/source-connections/:id`, async ({ request, params }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const { id } = params;
     return HttpResponse.json({
       success: true,
@@ -62,8 +62,7 @@ export const handlers = [
     return HttpResponse.json({ success: true });
   }),
 
-  http.post(`${API_URL}/source-connections/test`, async ({ request }) => {
-    const body = await request.json();
+  http.post(`${API_URL}/source-connections/test`, async () => {
     return HttpResponse.json({
       success: true,
       data: {
@@ -103,7 +102,7 @@ export const handlers = [
   }),
 
   http.post(`${API_URL}/schedules`, async ({ request }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       success: true,
       data: { ...mockSchedule, ...body, id: Math.floor(Math.random() * 1000) },
@@ -111,7 +110,7 @@ export const handlers = [
   }),
 
   http.put(`${API_URL}/schedules/:id`, async ({ request, params }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const { id } = params;
     return HttpResponse.json({
       success: true,
@@ -171,7 +170,7 @@ export const handlers = [
   }),
 
   http.post(`${API_URL}/ref-data`, async ({ request }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       success: true,
       data: { ...mockDepartment, ...body, id: Math.floor(Math.random() * 1000) },
@@ -179,7 +178,7 @@ export const handlers = [
   }),
 
   http.put(`${API_URL}/ref-data/:id`, async ({ request, params }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const { id } = params;
     return HttpResponse.json({
       success: true,
@@ -217,7 +216,7 @@ export const handlers = [
   }),
 
   http.post(`${API_URL}/watchers`, async ({ request }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json({
       success: true,
       data: { ...mockWatcher, ...body, id: Math.floor(Math.random() * 1000) },
@@ -225,7 +224,7 @@ export const handlers = [
   }),
 
   http.put(`${API_URL}/watchers/:id`, async ({ request, params }) => {
-    const body = await request.json();
+    const body = (await request.json()) as Record<string, unknown>;
     const { id } = params;
     return HttpResponse.json({
       success: true,

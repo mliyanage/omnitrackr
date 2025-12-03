@@ -45,7 +45,7 @@ export default function DepartmentsPage() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ code, data }: { code: string; data: { metadata: unknown } }) =>
+    mutationFn: ({ code, data }: { code: string; data: { metadata: Record<string, unknown> } }) =>
       updateRefData(code, data),
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
@@ -69,17 +69,18 @@ export default function DepartmentsPage() {
     setIsSheetOpen(true);
   };
 
-  const handleDelete = async (id: number, code: string) => {
+  const handleDelete = async (_id: number, code: string) => {
     await deleteMutation.mutateAsync(code);
   };
 
   const handleToggleActive = async (department: RefData) => {
-    const isCurrentlyActive = department.metadata?.is_active ?? true;
+    const currentMetadata = department.metadata || {};
+    const isCurrentlyActive = (currentMetadata as { is_active?: boolean })?.is_active ?? true;
     await updateMutation.mutateAsync({
       code: department.code,
       data: {
         metadata: {
-          ...department.metadata,
+          ...currentMetadata,
           is_active: !isCurrentlyActive,
         },
       },
@@ -98,13 +99,14 @@ export default function DepartmentsPage() {
 
   // Filter departments
   const filteredDepartments = departments.filter((department) => {
+    const metadata = department.metadata as { description?: string; is_active?: boolean } | null | undefined;
     const matchesSearch =
       searchQuery === '' ||
       department.value1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       department.value2?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      department.metadata?.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      metadata?.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const isActive = department.metadata?.is_active ?? true;
+    const isActive = metadata?.is_active ?? true;
     const matchesStatus =
       statusFilter === 'all' ||
       (statusFilter === 'active' && isActive) ||
@@ -115,9 +117,10 @@ export default function DepartmentsPage() {
 
   // Calculate summary stats
   const totalDepartments = departments.length;
-  const activeDepartments = departments.filter(
-    (d) => d.metadata?.is_active ?? true
-  ).length;
+  const activeDepartments = departments.filter((d) => {
+    const metadata = d.metadata as { is_active?: boolean } | null | undefined;
+    return metadata?.is_active ?? true;
+  }).length;
   const inactiveDepartments = totalDepartments - activeDepartments;
 
   return (

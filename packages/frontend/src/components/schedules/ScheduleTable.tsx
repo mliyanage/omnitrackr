@@ -73,7 +73,7 @@ export function ScheduleTable({
     return `Every ${interval} ${plural}`;
   };
 
-  const formatExecutionTimes = (times: string[] | null): string => {
+  const formatExecutionTimes = (times: string[] | null | undefined): string => {
     if (!times || times.length === 0) return 'N/A';
     if (times.length === 1) return times[0];
     if (times.length <= 3) return times.join(', ');

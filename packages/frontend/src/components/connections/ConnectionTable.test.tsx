@@ -20,6 +20,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -33,6 +34,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
         isLoading={true}
       />
     );
@@ -47,6 +49,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
         isLoading={false}
       />
     );
@@ -63,6 +66,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -81,6 +85,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -108,6 +113,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -116,9 +122,9 @@ describe('ConnectionTable', () => {
 
   it('renders status badges with correct variants', () => {
     const connections = [
-      createMockConnection({ id: 1, name: 'Active Connection', status: 'active' }),
-      createMockConnection({ id: 2, name: 'Inactive Connection', status: 'inactive' }),
-      createMockConnection({ id: 3, name: 'Error Connection', status: 'error' }),
+      createMockConnection({ id: 1, name: 'Active Connection', connection_status: 'healthy', enabled: true }),
+      createMockConnection({ id: 2, name: 'Inactive Connection', connection_status: 'healthy', enabled: false }),
+      createMockConnection({ id: 3, name: 'Error Connection', connection_status: 'failed', enabled: true }),
     ];
 
     render(
@@ -127,11 +133,12 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
     // All status badges should be present
-    const statusBadges = screen.getAllByText(/active|inactive|error/i);
+    const statusBadges = screen.getAllByText(/healthy|disabled|failed/i);
     expect(statusBadges.length).toBeGreaterThan(0);
   });
 
@@ -144,6 +151,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -164,6 +172,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -185,6 +194,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -206,6 +216,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -238,6 +249,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -272,6 +284,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -297,6 +310,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 
@@ -317,6 +331,7 @@ describe('ConnectionTable', () => {
         onEdit={mockOnEdit}
         onDelete={mockOnDelete}
         onTestConnection={mockOnTestConnection}
+        onViewHealth={vi.fn()}
       />
     );
 

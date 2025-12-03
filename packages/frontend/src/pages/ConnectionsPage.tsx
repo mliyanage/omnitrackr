@@ -104,15 +104,18 @@ export default function ConnectionsPage() {
     const matchesType = typeFilter === 'all' || connection.type === typeFilter;
 
     const matchesStatus =
-      statusFilter === 'all' || connection.status === statusFilter;
+      statusFilter === 'all' ||
+      (statusFilter === 'healthy' && connection.connection_status === 'healthy' && connection.enabled) ||
+      (statusFilter === 'disabled' && !connection.enabled) ||
+      (statusFilter === 'failed' && connection.connection_status === 'failed');
 
     return matchesSearch && matchesType && matchesStatus;
   });
 
   // Calculate summary stats
   const totalConnections = connections.length;
-  const activeConnections = connections.filter((c) => c.status === 'active').length;
-  const errorConnections = connections.filter((c) => c.status === 'error').length;
+  const activeConnections = connections.filter((c) => c.connection_status === 'healthy' && c.enabled).length;
+  const errorConnections = connections.filter((c) => c.connection_status === 'failed').length;
   const connectionTypes = connections.reduce((acc, conn) => {
     acc[conn.type] = (acc[conn.type] || 0) + 1;
     return acc;
@@ -164,9 +167,9 @@ export default function ConnectionsPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="active">Active</SelectItem>
-            <SelectItem value="inactive">Inactive</SelectItem>
-            <SelectItem value="error">Error</SelectItem>
+            <SelectItem value="healthy">Healthy</SelectItem>
+            <SelectItem value="disabled">Disabled</SelectItem>
+            <SelectItem value="failed">Failed</SelectItem>
           </SelectContent>
         </Select>
       </div>

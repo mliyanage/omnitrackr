@@ -51,15 +51,18 @@ export function DepartmentTable({
   } | null>(null);
 
   const isActive = (department: RefData): boolean => {
-    return department.metadata?.is_active ?? true;
+    const metadata = department.metadata as { is_active?: boolean } | null | undefined;
+    return metadata?.is_active ?? true;
   };
 
   const getSortOrder = (department: RefData): number => {
-    return department.metadata?.sort_order ?? 999;
+    const metadata = department.metadata as { sort_order?: number } | null | undefined;
+    return metadata?.sort_order ?? 999;
   };
 
   const getDescription = (department: RefData): string => {
-    return department.metadata?.description ?? '';
+    const metadata = department.metadata as { description?: string } | null | undefined;
+    return metadata?.description ?? '';
   };
 
   const formatDate = (dateString: string) => {

@@ -1,5 +1,5 @@
 import apiClient from './client';
-import type { PaginatedApiResponse } from '@/types';
+import type { PaginatedApiResponse, ApiResponse } from '@/types';
 
 /**
  * File Tracking API Client

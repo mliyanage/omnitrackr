@@ -1,5 +1,3 @@
-import type { BadgeProps } from '@/components/ui/badge';
-
 type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'success' | 'warning';
 
 interface BadgeConfig {

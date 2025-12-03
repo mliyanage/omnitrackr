@@ -134,7 +134,7 @@ export default function WatchersPage() {
 
     const matchesDepartment =
       departmentFilter === 'all' ||
-      watcher.department_id.toString() === departmentFilter;
+      watcher.department_code === departmentFilter;
 
     return matchesSearch && matchesStatus && matchesDepartment;
   });
@@ -198,7 +198,7 @@ export default function WatchersPage() {
           <SelectContent>
             <SelectItem value="all">All Departments</SelectItem>
             {departments.map((dept) => (
-              <SelectItem key={dept.id} value={dept.id.toString()}>
+              <SelectItem key={dept.id} value={dept.code}>
                 {dept.value1}
               </SelectItem>
             ))}
@@ -259,7 +259,7 @@ export default function WatchersPage() {
                   </TableCell>
                   <TableCell>
                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                      {watcher.file_name_pattern || watcher.path_pattern || '*'}
+                      {watcher.file_name_pattern || watcher.file_path_pattern || '*'}
                     </code>
                   </TableCell>
                   <TableCell>

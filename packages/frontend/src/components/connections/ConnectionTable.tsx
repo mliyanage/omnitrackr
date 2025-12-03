@@ -74,16 +74,16 @@ export function ConnectionTable({
 
   const getConnectionConfig = (connection: SourceConnection): string => {
     const config = connection.connection_config;
-    if ('bucket' in config && config.bucket) {
+    if ('bucket' in config && typeof config.bucket === 'string') {
       return config.bucket;
     }
-    if ('host' in config && config.host) {
+    if ('host' in config && typeof config.host === 'string') {
       return config.host;
     }
-    if ('container' in config && config.container) {
+    if ('container' in config && typeof config.container === 'string') {
       return config.container;
     }
-    if ('account_name' in config && config.account_name) {
+    if ('account_name' in config && typeof config.account_name === 'string') {
       return config.account_name;
     }
     return 'N/A';

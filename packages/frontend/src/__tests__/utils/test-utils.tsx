@@ -1,5 +1,5 @@
-import { ReactElement } from 'react';
-import { render, RenderOptions } from '@testing-library/react';
+import type { ReactElement } from 'react';
+import { render as rtlRender, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter } from 'react-router-dom';
 
@@ -32,8 +32,8 @@ function AllTheProviders({ children }: AllTheProvidersProps) {
   );
 }
 
-function customRender(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>) {
-  return render(ui, { wrapper: AllTheProviders, ...options });
+function customRender(ui: ReactElement, options?: Omit<RenderOptions, 'wrapper'>): RenderResult {
+  return rtlRender(ui, { wrapper: AllTheProviders, ...options });
 }
 
 export * from '@testing-library/react';

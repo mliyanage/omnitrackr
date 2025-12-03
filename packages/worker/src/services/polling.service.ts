@@ -295,7 +295,7 @@ export class PollingService {
       case 'exact':
         return fileName === pattern;
 
-      case 'partial':
+      case 'partial': {
         // Convert wildcard pattern to regex
         // Escape special regex chars except *, then convert * to .*
         const regexPattern = pattern
@@ -308,8 +308,9 @@ export class PollingService {
           console.error(`Invalid wildcard pattern: ${pattern}`, error);
           return false;
         }
+      }
 
-      case 'regex':
+      case 'regex': {
         try {
           const regex = new RegExp(pattern);
           return regex.test(fileName);
@@ -317,6 +318,7 @@ export class PollingService {
           console.error(`Invalid regex pattern: ${pattern}`, error);
           return false;
         }
+      }
 
       default:
         return false;
@@ -372,7 +374,7 @@ export class PollingService {
   private async matchFilesToSLATracking(
     watcher: Watcher,
     detectedFiles: DetectedFile[],
-    detectedAt: Date
+    _detectedAt: Date
   ): Promise<void> {
     // Filter to only new files
     const newFiles = detectedFiles.filter(f => f.isNew);

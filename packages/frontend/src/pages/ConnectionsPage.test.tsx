@@ -119,9 +119,9 @@ describe('ConnectionsPage', () => {
 
   it('renders status filter dropdown', async () => {
     const connections = [
-      createMockConnection({ id: 1, name: 'Active Conn', status: 'active' }),
-      createMockConnection({ id: 2, name: 'Inactive Conn', status: 'inactive' }),
-      createMockConnection({ id: 3, name: 'Error Conn', status: 'error' }),
+      createMockConnection({ id: 1, name: 'Active Conn', connection_status: 'healthy', enabled: true }),
+      createMockConnection({ id: 2, name: 'Inactive Conn', connection_status: 'healthy', enabled: false }),
+      createMockConnection({ id: 3, name: 'Error Conn', connection_status: 'failed', enabled: true }),
     ];
     vi.mocked(connectionsApi.getConnections).mockResolvedValue(connections);
 
@@ -139,10 +139,10 @@ describe('ConnectionsPage', () => {
 
   it('displays summary stats correctly', async () => {
     const connections = [
-      createMockConnection({ id: 1, status: 'active', type: 'S3' }),
-      createMockConnection({ id: 2, status: 'active', type: 'SFTP' }),
-      createMockConnection({ id: 3, status: 'error', type: 'S3' }),
-      createMockConnection({ id: 4, status: 'inactive', type: 'AZURE_BLOB' }),
+      createMockConnection({ id: 1, connection_status: 'healthy', enabled: true, type: 'S3' }),
+      createMockConnection({ id: 2, connection_status: 'healthy', enabled: true, type: 'SFTP' }),
+      createMockConnection({ id: 3, connection_status: 'failed', enabled: true, type: 'S3' }),
+      createMockConnection({ id: 4, connection_status: 'healthy', enabled: false, type: 'AZURE_BLOB' }),
     ];
     vi.mocked(connectionsApi.getConnections).mockResolvedValue(connections);
 
@@ -250,19 +250,22 @@ describe('ConnectionsPage', () => {
         id: 1,
         name: 'Active S3 Connection',
         type: 'S3',
-        status: 'active',
+        connection_status: 'healthy',
+        enabled: true,
       }),
       createMockConnection({
         id: 2,
         name: 'Active SFTP Connection',
         type: 'SFTP',
-        status: 'active',
+        connection_status: 'healthy',
+        enabled: true,
       }),
       createMockConnection({
         id: 3,
         name: 'Error S3 Connection',
         type: 'S3',
-        status: 'error',
+        connection_status: 'failed',
+        enabled: true,
       }),
     ];
     vi.mocked(connectionsApi.getConnections).mockResolvedValue(connections);

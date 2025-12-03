@@ -15,7 +15,6 @@ import { FileTrackingTable } from '@/components/file-tracking/FileTrackingTable'
 import {
   getFileTracking,
   getSLASummary,
-  type FileTracking,
 } from '@/api/fileTracking.api';
 import { getWatchers } from '@/api/watchers.api';
 import { cn } from '@/lib/utils';

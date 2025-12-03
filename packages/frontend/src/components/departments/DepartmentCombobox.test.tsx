@@ -60,7 +60,7 @@ describe('DepartmentCombobox - Simplified Tests', () => {
   it('accepts value and onChange props', () => {
     render(
       <DepartmentCombobox
-        value={mockDepartments[0].id}
+        value={mockDepartments[0].code}
         onChange={mockOnChange}
         onCreateNew={mockOnCreateNew}
       />
