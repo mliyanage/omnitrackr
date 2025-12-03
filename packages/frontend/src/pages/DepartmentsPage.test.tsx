@@ -10,6 +10,7 @@ vi.mock('@/api/refData.api', () => ({
   getDepartments: vi.fn(),
   deleteRefData: vi.fn(),
   updateRefData: vi.fn(),
+  createRefData: vi.fn(),
 }));
 
 describe('DepartmentsPage', () => {

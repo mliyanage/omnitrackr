@@ -10,6 +10,7 @@ vi.mock('@/api/schedules.api', () => ({
   getSchedules: vi.fn(),
   deleteSchedule: vi.fn(),
   updateSchedule: vi.fn(),
+  createSchedule: vi.fn(),
 }));
 
 describe('SchedulesPage', () => {
