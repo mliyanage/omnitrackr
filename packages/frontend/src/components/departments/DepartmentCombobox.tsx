@@ -110,28 +110,33 @@ export function DepartmentCombobox({
             </CommandEmpty>
             {filteredDepartments.length > 0 && (
               <CommandGroup heading="Departments">
-                {filteredDepartments.map((department) => (
-                  <CommandItem
-                    key={department.id}
-                    value={department.code}
-                    onSelect={() => handleSelect(department.code)}
-                  >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        value === department.code ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
-                    <div>
-                      <div className="font-medium">{department.value1}</div>
-                      {(department.metadata as Record<string, unknown>)?.description && (
-                        <div className="text-xs text-muted-foreground">
-                          {(department.metadata as Record<string, unknown>).description as string}
-                        </div>
-                      )}
-                    </div>
-                  </CommandItem>
-                ))}
+                {filteredDepartments.map((department) => {
+                  const description = (department.metadata as Record<string, unknown>)?.description;
+                  const descriptionText = typeof description === 'string' ? description : '';
+
+                  return (
+                    <CommandItem
+                      key={department.id}
+                      value={department.code}
+                      onSelect={() => handleSelect(department.code)}
+                    >
+                      <Check
+                        className={cn(
+                          'mr-2 h-4 w-4',
+                          value === department.code ? 'opacity-100' : 'opacity-0'
+                        )}
+                      />
+                      <div>
+                        <div className="font-medium">{department.value1}</div>
+                        {descriptionText && (
+                          <div className="text-xs text-muted-foreground">
+                            {descriptionText}
+                          </div>
+                        )}
+                      </div>
+                    </CommandItem>
+                  );
+                })}
               </CommandGroup>
             )}
             <CommandSeparator />
