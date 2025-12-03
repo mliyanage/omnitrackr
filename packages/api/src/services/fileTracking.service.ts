@@ -4,6 +4,7 @@ import {
   FileTrackingQueryOptions,
   SLADashboardSummary,
   WatcherRepository,
+  Watcher,
 } from '@omnitrackr/shared';
 import { db } from '../config/database';
 
@@ -37,7 +38,7 @@ export class FileTrackingService {
     // Enrich with watcher details
     const enrichedData = await Promise.all(
       result.data.map(async (record) => {
-        const watcher = await this.watcherRepo.findById(record.watcher_id);
+        const watcher = await this.watcherRepo.findById<Watcher>(record.watcher_id);
         return {
           ...record,
           watcher: watcher ? {
@@ -63,7 +64,7 @@ export class FileTrackingService {
     if (!record) return null;
 
     // Enrich with watcher details
-    const watcher = await this.watcherRepo.findById(record.watcher_id);
+    const watcher = await this.watcherRepo.findById<Watcher>(record.watcher_id);
     return {
       ...record,
       watcher: watcher ? {
@@ -73,7 +74,7 @@ export class FileTrackingService {
         source_connection_id: watcher.source_connection_id,
         schedule_id: watcher.schedule_id,
       } : undefined,
-    } as any;
+    } as FileTracking;
   }
 
   /**

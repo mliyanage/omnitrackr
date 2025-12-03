@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import { BaseRepository } from './base.repository';
-import { InwardFile, SLAStatus, ProcessingStatus } from '../types';
+import { OldInwardFile as InwardFile, SLAStatus, ProcessingStatus } from '../types';
 
 /**
  * Inward File Repository

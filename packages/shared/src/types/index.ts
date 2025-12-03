@@ -5,20 +5,28 @@
 
 export * from './common.types';
 export * from './fileSource.types';
-export * from './inwardFile.types';
 
-// New schema types (selective exports to avoid conflicts)
+// Export old inward file types with aliases to avoid conflicts
+export type {
+  InwardFile as OldInwardFile,
+  FileTracking as OldFileTracking,
+  SLAStatus,
+  ProcessingStatus,
+  S3Metadata,
+} from './inwardFile.types';
+
+// New schema types (these are the primary exports)
 export * from './sourceConnection.types';
 export * from './schedule.types';
 export * from './watcher.types';
 export * from './watcherLog.types';
 export * from './refData.types';
 
-// FileTracking types - export explicitly to avoid conflict with inwardFile.types
+// FileTracking types - export the NEW ones as the default
 export type {
   TrackingStatus,
   AlertType,
-  FileTracking as NewFileTracking, // Alias to avoid conflict
+  FileTracking,
   CreateFileTrackingRequest,
   FileArrivedRequest,
   FileTrackingQueryOptions,
