@@ -63,6 +63,8 @@ describe('WatcherService', () => {
       update: jest.fn(),
       softDelete: jest.fn(),
       updateStatus: jest.fn(),
+      findDeletedByName: jest.fn().mockResolvedValue(undefined),
+      restore: jest.fn(),
     } as any;
 
     mockConnectionRepo = {

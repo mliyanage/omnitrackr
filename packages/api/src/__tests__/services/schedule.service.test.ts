@@ -46,6 +46,8 @@ describe('ScheduleService', () => {
       create: jest.fn(),
       update: jest.fn(),
       softDelete: jest.fn(),
+      findDeletedByName: jest.fn().mockResolvedValue(undefined),
+      restore: jest.fn(),
     } as any;
 
     mockExclusionRepo = {

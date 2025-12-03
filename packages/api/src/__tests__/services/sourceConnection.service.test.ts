@@ -57,6 +57,8 @@ describe('SourceConnectionService', () => {
       updateHealthStatus: jest.fn(),
       findUnhealthy: jest.fn(),
       findExpiringCredentials: jest.fn(),
+      findDeletedByName: jest.fn().mockResolvedValue(undefined),
+      restore: jest.fn(),
     } as any;
 
     (SourceConnectionRepository as jest.Mock).mockImplementation(() => mockRepo);
@@ -196,11 +198,17 @@ describe('SourceConnectionService', () => {
         enabled: false,
       };
 
-      mockRepo.findById.mockResolvedValue(mockConnection);
-      mockRepo.update.mockResolvedValue({
+      const updatedConnection = {
         ...mockConnection,
         ...updates,
-      });
+      };
+
+      // First call to check if exists, second call to return updated
+      mockRepo.findById
+        .mockResolvedValueOnce(mockConnection)
+        .mockResolvedValueOnce(updatedConnection);
+      mockRepo.update.mockResolvedValue(updatedConnection);
+      mockRepo.updateHealthStatus.mockResolvedValue(undefined);
 
       const result = await service.update(1, updates, 'user123');
 
