@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@/__tests__/utils/test-utils';
 import { ConnectionSheet } from './ConnectionSheet';
 import { mockConnection } from '@/__tests__/utils/mockData';
 import userEvent from '@testing-library/user-event';
+import type { SourceConnection } from '@/types';
 
 // Mock the ConnectionForm component to simplify testing
 vi.mock('./ConnectionForm', () => ({
@@ -11,8 +12,8 @@ vi.mock('./ConnectionForm', () => ({
     onSuccess,
     onCancel,
   }: {
-    connection?: any;
-    onSuccess: (conn: any) => void;
+    connection?: SourceConnection;
+    onSuccess: (conn: SourceConnection) => void;
     onCancel: () => void;
   }) => (
     <div data-testid="connection-form">

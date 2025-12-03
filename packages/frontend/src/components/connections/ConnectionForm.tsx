@@ -109,7 +109,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
 
   const connectionType = form.watch('type');
   // Type-safe control for FormField components
-  const control = form.control as any;
+  const control = form.control;
 
   const createMutation = useMutation({
     mutationFn: createConnection,
@@ -123,7 +123,7 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: number; data: any }) => updateConnection(id, data),
+    mutationFn: ({ id, data }: { id: number; data: Partial<ConnectionFormValues> }) => updateConnection(id, data),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ['connections'] });
       onSuccess(data);
@@ -159,8 +159,8 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
       } else {
         showError(result.message || 'Connection test failed');
       }
-    } catch (error: any) {
-      const message = error.response?.data?.error?.message || 'Connection test failed';
+    } catch (error: unknown) {
+      const message = (error as { response?: { data?: { error?: { message?: string } } } }).response?.data?.error?.message || 'Connection test failed';
       setTestResult({
         success: false,
         message,

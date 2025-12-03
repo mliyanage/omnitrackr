@@ -32,6 +32,7 @@ global.IntersectionObserver = class IntersectionObserver {
     return [];
   }
   unobserve() {}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 // Mock ResizeObserver (required for cmdk/Command component)
@@ -40,6 +41,7 @@ global.ResizeObserver = class ResizeObserver {
   disconnect() {}
   observe() {}
   unobserve() {}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 } as any;
 
 // Start MSW server before all tests

@@ -46,14 +46,14 @@ export function DepartmentCombobox({
 
   // Only show active departments
   const activeDepartments = departments.filter(
-    (dept) => (dept.metadata as any)?.is_active !== false
+    (dept) => (dept.metadata as Record<string, unknown>)?.is_active !== false
   );
 
   const selectedDepartment = activeDepartments.find((dept) => dept.code === value);
 
   const filteredDepartments = activeDepartments.filter((dept) => {
     const searchLower = searchQuery.toLowerCase();
-    const description = (dept.metadata as any)?.description || '';
+    const description = (dept.metadata as Record<string, unknown>)?.description as string || '';
     return (
       dept.value1?.toLowerCase().includes(searchLower) ||
       dept.value2?.toLowerCase().includes(searchLower) ||
@@ -124,9 +124,9 @@ export function DepartmentCombobox({
                     />
                     <div>
                       <div className="font-medium">{department.value1}</div>
-                      {(department.metadata as any)?.description && (
+                      {(department.metadata as Record<string, unknown>)?.description && (
                         <div className="text-xs text-muted-foreground">
-                          {(department.metadata as any).description}
+                          {(department.metadata as Record<string, unknown>).description as string}
                         </div>
                       )}
                     </div>
