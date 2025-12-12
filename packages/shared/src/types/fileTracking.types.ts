@@ -3,6 +3,8 @@
  * Shared types for SLA tracking and missing file alerts
  */
 
+import type { DirectionType } from './watcher.types';
+
 // Enums matching database types
 export type TrackingStatus = 'pending' | 'arrived' | 'late' | 'missing';
 export type AlertType = 'sla_at_risk' | 'sla_breached' | 'file_arrived';
@@ -75,6 +77,7 @@ export interface FileTrackingQueryOptions {
   alert_triggered?: boolean;
   expected_from?: Date;
   expected_to?: Date;
+  direction?: DirectionType;
   page?: number;
   limit?: number;
 }

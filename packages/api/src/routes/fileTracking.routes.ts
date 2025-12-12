@@ -31,4 +31,11 @@ router.get('/:id', fileTrackingController.getById);
  */
 router.get('/', fileTrackingController.getAll);
 
+/**
+ * @route   POST /api/file-tracking/:id/mark-arrived
+ * @desc    Manually mark a file tracking record as arrived
+ * @access  Private
+ */
+router.post('/:id/mark-arrived', fileTrackingController.markAsArrived);
+
 export default router;

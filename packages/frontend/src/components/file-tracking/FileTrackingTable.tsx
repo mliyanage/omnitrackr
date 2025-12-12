@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { MoreHorizontal, Eye, FileSearch } from 'lucide-react';
+import { MoreHorizontal, Eye, FileSearch, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import type { FileTracking } from '@/api/fileTracking.api';
 import {
@@ -36,12 +36,14 @@ interface FileTrackingTableProps {
   records: FileTracking[];
   isLoading?: boolean;
   onViewDetails?: (record: FileTracking) => void;
+  onMarkAsArrived?: (record: FileTracking) => void;
 }
 
 export function FileTrackingTable({
   records,
   isLoading,
   onViewDetails,
+  onMarkAsArrived,
 }: FileTrackingTableProps) {
   const navigate = useNavigate();
 
@@ -263,6 +265,12 @@ export function FileTrackingTable({
                         <DropdownMenuItem onClick={() => onViewDetails(record)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View Details
+                        </DropdownMenuItem>
+                      )}
+                      {onMarkAsArrived && (record.tracking_status === 'pending' || record.tracking_status === 'missing') && (
+                        <DropdownMenuItem onClick={() => onMarkAsArrived(record)}>
+                          <CheckCircle className="mr-2 h-4 w-4" />
+                          Mark as Arrived
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem onClick={() => handleViewWatcher(record.watcher_id)}>

@@ -226,6 +226,9 @@ export interface Watcher {
   sla_enabled: boolean;
   sla_threshold_minutes?: number | null;
 
+  // Polling configuration
+  poll_interval_minutes: number;
+
   // Polling statistics
   last_check_at?: string | null;
   last_check_status?: PollStatus | null;
@@ -259,6 +262,7 @@ export interface CreateWatcherRequest {
   direction: WatcherDirection;
   sla_enabled?: boolean;
   sla_threshold_minutes?: number;
+  poll_interval_minutes?: number;
 }
 
 export interface UpdateWatcherRequest {
@@ -273,6 +277,7 @@ export interface UpdateWatcherRequest {
   direction?: WatcherDirection;
   sla_enabled?: boolean;
   sla_threshold_minutes?: number;
+  poll_interval_minutes?: number;
   status?: WatcherStatus;
 }
 

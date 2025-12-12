@@ -53,6 +53,7 @@ const watcherFormSchema = z.object({
   direction: z.enum(['inward', 'outward', 'bidirectional']),
   sla_enabled: z.boolean().default(false),
   sla_threshold_minutes: z.coerce.number().int().min(1).optional().nullable(),
+  poll_interval_minutes: z.coerce.number().int().min(1).max(1440).default(5),
 });
 
 type WatcherFormValues = z.infer<typeof watcherFormSchema>;
@@ -87,6 +88,7 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
           direction: watcher.direction,
           sla_enabled: watcher.sla_enabled,
           sla_threshold_minutes: watcher.sla_threshold_minutes,
+          poll_interval_minutes: watcher.poll_interval_minutes,
         }
       : {
           name: '',
@@ -100,6 +102,7 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
           direction: 'inward',
           sla_enabled: false,
           sla_threshold_minutes: 60,
+          poll_interval_minutes: 5,
         },
   });
 
@@ -421,6 +424,40 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
                 />
               )}
             </div>
+          </div>
+
+          <div className="space-y-6 rounded-lg border p-6 bg-muted/30">
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold leading-none">Polling Configuration</h3>
+              <p className="text-sm text-muted-foreground">
+                Configure how frequently this watcher polls for new files
+              </p>
+            </div>
+
+            <FormField
+              control={form.control}
+              name="poll_interval_minutes"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Polling Interval (Minutes)</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min="1"
+                      max="1440"
+                      placeholder="5"
+                      {...field}
+                      value={field.value || ''}
+                      className="max-w-[200px]"
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    How often to check for new files (1-1440 minutes). Lower values provide more accurate tracking but may increase costs. Recommended: 5 minutes.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
           </div>
 
           <div className="flex justify-end gap-3 pt-4">

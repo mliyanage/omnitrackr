@@ -106,42 +106,11 @@ export class PollingWorker {
     console.log(`\n🔄 Starting polling cycle at ${getCurrentTimestamp()}`);
 
     try {
-      // Get all active watchers
-      const watchers = await this.watcherRepo.findDueForPolling();
-
-      if (watchers.length === 0) {
-        console.log('   No watchers to poll');
-        return;
-      }
-
-      console.log(`   Found ${watchers.length} active watchers`);
-
-      // Filter watchers that are actually due based on their schedule
-      const watchersDue: typeof watchers = [];
-
-      for (const watcher of watchers) {
-        if (!watcher.schedule_id) {
-          continue; // Skip watchers without schedules
-        }
-
-        const schedule = await this.scheduleRepo.findById(watcher.schedule_id) as any;
-        if (!schedule) {
-          continue;
-        }
-
-        // Check if this watcher should run now
-        const shouldRun = await this.schedulerService.shouldRunNow(
-          schedule,
-          watcher.last_check_at
-        );
-
-        if (shouldRun) {
-          watchersDue.push(watcher);
-        }
-      }
+      // Get watchers due for polling (based on poll_interval_minutes)
+      const watchersDue = await this.watcherRepo.findDueForPolling();
 
       if (watchersDue.length === 0) {
-        console.log('   No watchers are due to run');
+        console.log('   No watchers due to poll');
         return;
       }
 

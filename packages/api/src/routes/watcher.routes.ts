@@ -32,6 +32,13 @@ router.get('/by-connection/:connectionId', watcherController.getByConnection);
 router.get('/by-department/:departmentCode', watcherController.getByDepartment);
 
 /**
+ * @route   GET /api/watchers/:id/files
+ * @desc    List files from source for manual override
+ * @access  Private
+ */
+router.get('/:id/files', watcherController.listFiles);
+
+/**
  * @route   GET /api/watchers/:id
  * @desc    Get a single watcher by ID (with relations)
  * @access  Private

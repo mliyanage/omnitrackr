@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -12,9 +12,11 @@ import {
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
 import { FileTrackingTable } from '@/components/file-tracking/FileTrackingTable';
+import { FileSelectionSheet } from '@/components/file-tracking/FileSelectionSheet';
 import {
   getFileTracking,
   getSLASummary,
+  type FileTracking,
 } from '@/api/fileTracking.api';
 import { getWatchers } from '@/api/watchers.api';
 import { cn } from '@/lib/utils';
@@ -22,14 +24,24 @@ import { cn } from '@/lib/utils';
 type StatusFilter = 'all' | 'pending' | 'arrived' | 'late' | 'missing';
 type AlertFilter = 'all' | 'true' | 'false';
 type DateRangeFilter = '24h' | '7d' | '30d';
+type DirectionFilter = 'all' | 'inward' | 'outward' | 'bidirectional';
 
 export default function FileTrackingPage() {
   // Filter state
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [watcherFilter, setWatcherFilter] = useState<string>('all');
   const [alertFilter, setAlertFilter] = useState<AlertFilter>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [dateRange, setDateRange] = useState<DateRangeFilter>('24h');
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allLoadedRecords, setAllLoadedRecords] = useState<FileTracking[]>([]);
+
+  // File selection sheet state
+  const [isFileSelectionSheetOpen, setIsFileSelectionSheetOpen] = useState(false);
+  const [selectedTrackingRecord, setSelectedTrackingRecord] = useState<FileTracking | null>(null);
 
   // Calculate date range - memoized to prevent infinite loops
   const dateRangeValues = useMemo(() => {
@@ -59,6 +71,7 @@ export default function FileTrackingPage() {
     data: fileTrackingData,
     isLoading: isLoadingRecords,
     refetch: refetchRecords,
+    dataUpdatedAt,
   } = useQuery({
     queryKey: [
       'file-tracking',
@@ -66,6 +79,8 @@ export default function FileTrackingPage() {
         status: statusFilter,
         watcher_id: watcherFilter,
         alert: alertFilter,
+        direction: directionFilter,
+        page: currentPage,
         ...dateRangeValues,
       },
     ],
@@ -75,23 +90,39 @@ export default function FileTrackingPage() {
         watcher_id: watcherFilter !== 'all' ? Number(watcherFilter) : undefined,
         alert_triggered:
           alertFilter === 'true' ? true : alertFilter === 'false' ? false : undefined,
+        direction: directionFilter !== 'all' ? directionFilter : undefined,
         expected_from: dateRangeValues.from,
         expected_to: dateRangeValues.to,
-        page: 1,
-        limit: 100,
+        page: currentPage,
+        limit: 25,
       }),
     refetchInterval: 30000, // Auto-refresh every 30 seconds
+    staleTime: 0, // Always fetch fresh data, don't use stale cache
+    refetchOnMount: true,
   });
 
-  // Fetch SLA summary
+  // Fetch SLA summary from backend with all filters for accurate aggregation
   const { data: slaSummary, isLoading: isLoadingSummary } = useQuery({
-    queryKey: ['sla-summary', dateRangeValues],
+    queryKey: [
+      'sla-summary',
+      dateRangeValues,
+      statusFilter,
+      watcherFilter,
+      directionFilter,
+      alertFilter,
+    ],
     queryFn: () =>
       getSLASummary({
         from_date: dateRangeValues.from,
         to_date: dateRangeValues.to,
+        watcher_id: watcherFilter !== 'all' ? Number(watcherFilter) : undefined,
+        tracking_status: statusFilter !== 'all' ? statusFilter : undefined,
+        alert_triggered:
+          alertFilter === 'true' ? true : alertFilter === 'false' ? false : undefined,
+        direction: directionFilter !== 'all' ? directionFilter : undefined,
       }),
     refetchInterval: 30000,
+    staleTime: 0,
   });
 
   // Fetch watchers for filter dropdown
@@ -100,8 +131,27 @@ export default function FileTrackingPage() {
     queryFn: () => getWatchers(),
   });
 
+  // Accumulate records when new data arrives
+  useEffect(() => {
+    if (fileTrackingData?.data) {
+      if (currentPage === 1) {
+        // First page - replace all records
+        setAllLoadedRecords(fileTrackingData.data);
+      } else {
+        // Subsequent pages - append records
+        setAllLoadedRecords((prev) => [...prev, ...fileTrackingData.data]);
+      }
+    }
+  }, [dataUpdatedAt, currentPage, fileTrackingData]); // Use dataUpdatedAt to detect data changes
+
+  // Reset pagination when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+    setAllLoadedRecords([]);
+  }, [statusFilter, watcherFilter, alertFilter, directionFilter, dateRangeValues]);
+
   // Client-side filtering for search
-  const filteredRecords = (fileTrackingData?.data || []).filter((record) => {
+  const filteredRecords = allLoadedRecords.filter((record) => {
     if (!searchQuery) return true;
 
     const query = searchQuery.toLowerCase();
@@ -113,6 +163,21 @@ export default function FileTrackingPage() {
   });
 
   const handleRefresh = () => {
+    setCurrentPage(1);
+    setAllLoadedRecords([]);
+    refetchRecords();
+  };
+
+  const handleLoadMore = () => {
+    setCurrentPage((prev) => prev + 1);
+  };
+
+  const handleMarkAsArrived = (record: FileTracking) => {
+    setSelectedTrackingRecord(record);
+    setIsFileSelectionSheetOpen(true);
+  };
+
+  const handleFileSelectionSuccess = () => {
     refetchRecords();
   };
 
@@ -145,7 +210,7 @@ export default function FileTrackingPage() {
         <Card className="p-4">
           <div className="text-sm text-muted-foreground">Total Expected</div>
           <div className="text-2xl font-bold mt-2">
-            {isLoadingSummary ? '...' : slaSummary?.total_expected || 0}
+            {isLoadingSummary || !slaSummary ? '...' : slaSummary.total_expected}
           </div>
         </Card>
 
@@ -155,12 +220,12 @@ export default function FileTrackingPage() {
           <div
             className={cn(
               'text-2xl font-bold mt-2',
-              !isLoadingSummary && getOnTimeColor(slaSummary?.on_time_percentage || 0)
+              !isLoadingSummary && slaSummary && getOnTimeColor(slaSummary.on_time_percentage)
             )}
           >
-            {isLoadingSummary
+            {isLoadingSummary || !slaSummary
               ? '...'
-              : `${(slaSummary?.on_time_percentage || 0).toFixed(1)}%`}
+              : `${slaSummary.on_time_percentage.toFixed(1)}%`}
           </div>
         </Card>
 
@@ -171,13 +236,14 @@ export default function FileTrackingPage() {
             className={cn(
               'text-2xl font-bold mt-2',
               !isLoadingSummary &&
-                (slaSummary?.arrived_late || 0) + (slaSummary?.missing || 0) > 0 &&
+                slaSummary &&
+                slaSummary.arrived_late + slaSummary.missing > 0 &&
                 'text-red-600'
             )}
           >
-            {isLoadingSummary
+            {isLoadingSummary || !slaSummary
               ? '...'
-              : (slaSummary?.arrived_late || 0) + (slaSummary?.missing || 0)}
+              : slaSummary.arrived_late + slaSummary.missing}
           </div>
         </Card>
 
@@ -187,10 +253,10 @@ export default function FileTrackingPage() {
           <div
             className={cn(
               'text-2xl font-bold mt-2',
-              !isLoadingSummary && (slaSummary?.at_risk_count || 0) > 0 && 'text-yellow-600'
+              !isLoadingSummary && slaSummary && slaSummary.at_risk_count > 0 && 'text-yellow-600'
             )}
           >
-            {isLoadingSummary ? '...' : slaSummary?.at_risk_count || 0}
+            {isLoadingSummary || !slaSummary ? '...' : slaSummary.at_risk_count}
           </div>
         </Card>
       </div>
@@ -247,6 +313,19 @@ export default function FileTrackingPage() {
           </SelectContent>
         </Select>
 
+        {/* Direction Filter */}
+        <Select value={directionFilter} onValueChange={(v) => setDirectionFilter(v as DirectionFilter)}>
+          <SelectTrigger className="w-full md:w-[180px]">
+            <SelectValue placeholder="Direction" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Directions</SelectItem>
+            <SelectItem value="inward">Inward</SelectItem>
+            <SelectItem value="outward">Outward</SelectItem>
+            <SelectItem value="bidirectional">Bidirectional</SelectItem>
+          </SelectContent>
+        </Select>
+
         {/* Date Range Filter */}
         <Select value={dateRange} onValueChange={(v) => setDateRange(v as DateRangeFilter)}>
           <SelectTrigger className="w-full md:w-[180px]">
@@ -261,7 +340,48 @@ export default function FileTrackingPage() {
       </div>
 
       {/* Table Section */}
-      <FileTrackingTable records={filteredRecords} isLoading={isLoadingRecords} />
+      <FileTrackingTable
+        records={filteredRecords}
+        isLoading={isLoadingRecords}
+        onMarkAsArrived={handleMarkAsArrived}
+      />
+
+      {/* Pagination Section */}
+      {fileTrackingData?.pagination && (
+        <div className="flex flex-col items-center gap-4 mt-6">
+          {/* Record Count */}
+          <div className="text-sm text-muted-foreground">
+            Showing {allLoadedRecords.length} of {fileTrackingData.pagination.total} records
+          </div>
+
+          {/* Load More Button */}
+          {currentPage < fileTrackingData.pagination.totalPages && (
+            <Button
+              onClick={handleLoadMore}
+              disabled={isLoadingRecords}
+              variant="outline"
+              className="w-full md:w-auto"
+            >
+              {isLoadingRecords ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                'Load More'
+              )}
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* File Selection Sheet */}
+      <FileSelectionSheet
+        open={isFileSelectionSheetOpen}
+        onOpenChange={setIsFileSelectionSheetOpen}
+        trackingRecord={selectedTrackingRecord}
+        onSuccess={handleFileSelectionSuccess}
+      />
     </div>
   );
 }

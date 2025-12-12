@@ -53,13 +53,28 @@ export class WatcherRepository extends BaseRepository {
   }
 
   /**
-   * Find watchers due for polling
+   * Find watchers due for polling based on poll_interval_minutes
+   * A watcher is "due" if:
+   * - It's active
+   * - last_check_at is NULL (never polled), OR
+   * - current_time - last_check_at >= poll_interval_minutes
+   *
    * Groups by connection for batch processing
    */
   async findDueForPolling(): Promise<Watcher[]> {
+    const now = new Date();
+
     return this.db(this.tableName)
       .where({ status: 'active' as WatcherStatus, deleted_at: null })
-      .whereNotNull('schedule_id')
+      .andWhere((builder) => {
+        builder
+          // Never polled before
+          .whereNull('last_check_at')
+          // OR polled but enough time has passed
+          .orWhereRaw(
+            `EXTRACT(EPOCH FROM (NOW() - last_check_at)) / 60 >= poll_interval_minutes`
+          );
+      })
       .orderBy(['source_connection_id', 'last_check_at']);
   }
 

@@ -8,7 +8,9 @@ import {
   UpdateWatcherRequest,
   WatcherStatus,
   DirectionType,
+  SourceConnection,
 } from '@omnitrackr/shared';
+import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { db } from '../config/database';
 import { NotFoundError, ValidationError } from '../utils/errors';
 
@@ -211,5 +213,130 @@ export class WatcherService {
    */
   async getDueForPolling(): Promise<Watcher[]> {
     return this.watcherRepo.findDueForPolling();
+  }
+
+  /**
+   * List files from source for a watcher
+   * Used for manual file override
+   */
+  async listFiles(watcherId: number): Promise<Array<{
+    file_name: string;
+    file_path: string;
+    file_size: number;
+    last_modified: Date;
+  }>> {
+    const watcher = await this.getById(watcherId);
+    const connection = await this.connectionRepo.findById<SourceConnection>(
+      watcher.source_connection_id
+    );
+
+    if (!connection) {
+      throw new NotFoundError('Connection', watcher.source_connection_id);
+    }
+
+    // Only S3 is supported for now
+    if (connection.type !== 'S3') {
+      throw new ValidationError('Only S3 connections are supported for manual file override');
+    }
+
+    const config = connection.connection_config as any;
+    const s3Client = new S3Client({
+      region: config.region,
+      credentials: {
+        accessKeyId: config.access_key_id,
+        secretAccessKey: config.secret_access_key,
+      },
+    });
+
+    const files: Array<{
+      file_name: string;
+      file_path: string;
+      file_size: number;
+      last_modified: Date;
+    }> = [];
+
+    // List objects in bucket with optional prefix
+    let prefix = watcher.file_path_pattern || config.path_prefix || '';
+    if (prefix.startsWith('/')) {
+      prefix = prefix.substring(1);
+    }
+    if (prefix && !prefix.endsWith('/')) {
+      prefix = prefix + '/';
+    }
+
+    let continuationToken: string | undefined;
+
+    do {
+      const listCommand = new ListObjectsV2Command({
+        Bucket: config.bucket,
+        Prefix: prefix,
+        ContinuationToken: continuationToken,
+        MaxKeys: 1000,
+      });
+
+      const response = await s3Client.send(listCommand);
+
+      if (response.Contents) {
+        for (const obj of response.Contents) {
+          if (!obj.Key) continue;
+
+          const fileName = obj.Key.split('/').pop() || obj.Key;
+
+          // Check if file matches the watcher's pattern
+          if (this.matchesPattern(fileName, watcher)) {
+            files.push({
+              file_name: fileName,
+              file_path: obj.Key,
+              file_size: obj.Size || 0,
+              last_modified: obj.LastModified || new Date(),
+            });
+          }
+        }
+      }
+
+      continuationToken = response.NextContinuationToken;
+    } while (continuationToken);
+
+    // Sort by last modified descending (newest first)
+    files.sort((a, b) => b.last_modified.getTime() - a.last_modified.getTime());
+
+    return files;
+  }
+
+  /**
+   * Check if a filename matches the watcher's pattern
+   */
+  private matchesPattern(fileName: string, watcher: Watcher): boolean {
+    if (!watcher.file_name_pattern) {
+      return true; // No pattern means match all
+    }
+
+    const pattern = watcher.file_name_pattern;
+    const matchRule = watcher.match_rule || 'partial';
+
+    switch (matchRule) {
+      case 'exact':
+        return fileName === pattern;
+
+      case 'partial': {
+        // Wildcard matching
+        const regexPattern = pattern
+          .replace(/[.+?^${}()|[\]\\]/g, '\\$&') // Escape special regex chars
+          .replace(/\*/g, '.*'); // Convert * to .*
+        const regex = new RegExp(`^${regexPattern}$`);
+        return regex.test(fileName);
+      }
+
+      case 'regex':
+        try {
+          const userRegex = new RegExp(pattern);
+          return userRegex.test(fileName);
+        } catch {
+          return false; // Invalid regex
+        }
+
+      default:
+        return false;
+    }
   }
 }

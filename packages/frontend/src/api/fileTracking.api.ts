@@ -5,7 +5,7 @@ import type { PaginatedApiResponse, ApiResponse } from '@/types';
  * File Tracking API Client
  */
 
-export interface FileTracking {
+export type FileTracking = {
   id: number;
   watcher_id: number;
   expected_pattern: string;
@@ -28,9 +28,9 @@ export interface FileTracking {
     name: string;
     department_code?: string;
   };
-}
+};
 
-export interface SLADashboardSummary {
+export type SLADashboardSummary = {
   period_start: Date;
   period_end: Date;
   total_expected: number;
@@ -40,17 +40,18 @@ export interface SLADashboardSummary {
   pending: number;
   on_time_percentage: number;
   at_risk_count: number;
-}
+};
 
-export interface FileTrackingQueryParams {
+export type FileTrackingQueryParams = {
   watcher_id?: number;
   tracking_status?: 'pending' | 'arrived' | 'late' | 'missing';
   alert_triggered?: boolean;
   expected_from?: string;
   expected_to?: string;
+  direction?: 'inward' | 'outward' | 'bidirectional';
   page?: number;
   limit?: number;
-}
+};
 
 /**
  * Get all file tracking records with filters and pagination
@@ -90,12 +91,15 @@ export const getFileTrackingById = async (id: number): Promise<FileTracking> => 
 };
 
 /**
- * Get SLA summary statistics
+ * Get SLA summary statistics with all filters
  */
 export const getSLASummary = async (params?: {
   from_date?: string;
   to_date?: string;
   watcher_id?: number;
+  tracking_status?: 'pending' | 'arrived' | 'late' | 'missing';
+  alert_triggered?: boolean;
+  direction?: 'inward' | 'outward' | 'bidirectional';
 }): Promise<SLADashboardSummary> => {
   const response = await apiClient.get<ApiResponse<SLADashboardSummary>>(
     '/api/file-tracking/summary',
@@ -103,6 +107,28 @@ export const getSLASummary = async (params?: {
   );
   if (!response.data.data) {
     throw new Error('Failed to get SLA summary');
+  }
+  return response.data.data;
+};
+
+/**
+ * Manually mark a file tracking record as arrived
+ */
+export const markFileAsArrived = async (
+  trackingId: number,
+  fileData: {
+    file_path: string;
+    file_name: string;
+    file_size: number;
+    arrived_at: string;
+  }
+): Promise<FileTracking> => {
+  const response = await apiClient.post<ApiResponse<FileTracking>>(
+    `/api/file-tracking/${trackingId}/mark-arrived`,
+    fileData
+  );
+  if (!response.data.data) {
+    throw new Error('Failed to mark file as arrived');
   }
   return response.data.data;
 };

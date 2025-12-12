@@ -35,6 +35,7 @@ describe('WatcherService', () => {
     last_files_detected: 0,
     sla_enabled: false,
     sla_threshold_minutes: null,
+    poll_interval_minutes: 60,
     direction: 'inward',
     owner_team: 'Data Team',
     status: 'active',

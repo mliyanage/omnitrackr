@@ -194,6 +194,24 @@ export class WatcherController {
       next(error);
     }
   };
+
+  /**
+   * GET /api/watchers/:id/files
+   * List files from source for manual override
+   */
+  listFiles = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const files = await this.service.listFiles(Number(id));
+
+      res.status(200).json({
+        success: true,
+        data: files,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const watcherController = new WatcherController();

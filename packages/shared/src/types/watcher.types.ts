@@ -43,6 +43,9 @@ export interface Watcher {
   sla_enabled: boolean;
   sla_threshold_minutes?: number | null;
 
+  // Polling Configuration
+  poll_interval_minutes: number;
+
   // Metadata
   direction: DirectionType;
   owner_team?: string | null;
@@ -78,6 +81,7 @@ export interface CreateWatcherRequest {
   match_rule?: MatchRule;
   sla_enabled?: boolean;
   sla_threshold_minutes?: number;
+  poll_interval_minutes?: number;
   direction?: DirectionType;
   owner_team?: string;
   status?: WatcherStatus;
@@ -97,6 +101,7 @@ export interface UpdateWatcherRequest {
   match_rule?: MatchRule;
   sla_enabled?: boolean;
   sla_threshold_minutes?: number;
+  poll_interval_minutes?: number;
   direction?: DirectionType;
   owner_team?: string;
   status?: WatcherStatus;

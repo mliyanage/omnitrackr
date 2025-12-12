@@ -305,29 +305,44 @@ export class FileTrackingRepository extends BaseRepository {
 
     let query = this.db(this.tableName);
 
-    if (options.watcher_id) {
-      query = query.where({ watcher_id: options.watcher_id });
-    }
-    if (options.tracking_status) {
-      query = query.where({ tracking_status: options.tracking_status });
-    }
-    if (options.alert_triggered !== undefined) {
-      query = query.where({ alert_triggered: options.alert_triggered });
-    }
-    if (options.expected_from) {
-      query = query.where('expected_at', '>=', options.expected_from);
-    }
-    if (options.expected_to) {
-      query = query.where('expected_at', '<=', options.expected_to);
+    // Apply join if direction filter is needed
+    if (options.direction) {
+      query = query
+        .join('watchers', 'file_tracking.watcher_id', 'watchers.id')
+        .select('file_tracking.*');
     }
 
-    // Get total count
-    const [{ count: total }] = await query.clone().count('* as count');
+    // Apply filters with table-prefixed columns when join is present
+    if (options.watcher_id) {
+      query = query.where('file_tracking.watcher_id', options.watcher_id);
+    }
+    if (options.tracking_status) {
+      query = query.where('file_tracking.tracking_status', options.tracking_status);
+    }
+    if (options.alert_triggered !== undefined) {
+      query = query.where('file_tracking.alert_triggered', options.alert_triggered);
+    }
+    if (options.expected_from) {
+      query = query.where('file_tracking.expected_at', '>=', options.expected_from);
+    }
+    if (options.expected_to) {
+      query = query.where('file_tracking.expected_at', '<=', options.expected_to);
+    }
+    if (options.direction) {
+      query = query.where('watchers.direction', options.direction);
+    }
+
+    // Get total count - need to clear select for count to work with joins
+    const countQuery = query.clone();
+    if (options.direction) {
+      countQuery.clearSelect();
+    }
+    const [{ count: total }] = await countQuery.count('* as count');
     const totalCount = parseInt(String(total), 10);
 
     // Get paginated data
     const data = await query
-      .orderBy('expected_at', 'desc')
+      .orderBy('file_tracking.expected_at', 'desc')
       .limit(limit)
       .offset(offset);
 
@@ -339,6 +354,134 @@ export class FileTrackingRepository extends BaseRepository {
         total: totalCount,
         totalPages: Math.ceil(totalCount / limit),
       },
+    };
+  }
+
+  /**
+   * Get aggregated statistics with filters (efficient SQL aggregation)
+   */
+  async getAggregatedStats(options: FileTrackingQueryOptions): Promise<{
+    total_expected: number;
+    arrived_on_time: number;
+    arrived_late: number;
+    missing: number;
+    pending: number;
+    at_risk_count: number;
+  }> {
+    let query = this.db(this.tableName);
+
+    // Apply join if direction filter is needed
+    if (options.direction) {
+      query = query.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
+    }
+
+    // Apply filters
+    if (options.watcher_id) {
+      query = query.where('file_tracking.watcher_id', options.watcher_id);
+    }
+    if (options.tracking_status) {
+      query = query.where('file_tracking.tracking_status', options.tracking_status);
+    }
+    if (options.alert_triggered !== undefined) {
+      query = query.where('file_tracking.alert_triggered', options.alert_triggered);
+    }
+    if (options.expected_from) {
+      query = query.where('file_tracking.expected_at', '>=', options.expected_from);
+    }
+    if (options.expected_to) {
+      query = query.where('file_tracking.expected_at', '<=', options.expected_to);
+    }
+    if (options.direction) {
+      query = query.where('watchers.direction', options.direction);
+    }
+
+    // Get counts by status using SQL aggregation
+    const statusCounts = await query
+      .select('tracking_status')
+      .count('* as count')
+      .groupBy('tracking_status');
+
+    // Parse counts
+    const counts = {
+      pending: 0,
+      arrived: 0,
+      late: 0,
+      missing: 0,
+    };
+
+    statusCounts.forEach((row: any) => {
+      counts[row.tracking_status as keyof typeof counts] = parseInt(String(row.count), 10);
+    });
+
+    // Calculate arrived on time (arrived before SLA deadline)
+    const onTimeQuery = this.db(this.tableName)
+      .where('tracking_status', 'arrived')
+      .whereRaw('arrived_at <= sla_deadline');
+
+    // Apply same filters to on-time query
+    if (options.direction) {
+      onTimeQuery.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
+    }
+    if (options.watcher_id) {
+      onTimeQuery.where('file_tracking.watcher_id', options.watcher_id);
+    }
+    if (options.expected_from) {
+      onTimeQuery.where('file_tracking.expected_at', '>=', options.expected_from);
+    }
+    if (options.expected_to) {
+      onTimeQuery.where('file_tracking.expected_at', '<=', options.expected_to);
+    }
+    if (options.direction) {
+      onTimeQuery.where('watchers.direction', options.direction);
+    }
+    if (options.alert_triggered !== undefined) {
+      onTimeQuery.where('file_tracking.alert_triggered', options.alert_triggered);
+    }
+
+    const [{ count: onTimeCount }] = await onTimeQuery.count('* as count');
+    const arrived_on_time = parseInt(String(onTimeCount), 10);
+
+    // Calculate at-risk (pending within 30 mins of deadline)
+    const now = new Date();
+    const thirtyMinsFromNow = new Date(now.getTime() + 30 * 60 * 1000);
+
+    const atRiskQuery = this.db(this.tableName)
+      .where('tracking_status', 'pending')
+      .where('sla_deadline', '>', now.toISOString())
+      .where('sla_deadline', '<=', thirtyMinsFromNow.toISOString());
+
+    // Apply same filters to at-risk query
+    if (options.direction) {
+      atRiskQuery.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
+    }
+    if (options.watcher_id) {
+      atRiskQuery.where('file_tracking.watcher_id', options.watcher_id);
+    }
+    if (options.expected_from) {
+      atRiskQuery.where('file_tracking.expected_at', '>=', options.expected_from);
+    }
+    if (options.expected_to) {
+      atRiskQuery.where('file_tracking.expected_at', '<=', options.expected_to);
+    }
+    if (options.direction) {
+      atRiskQuery.where('watchers.direction', options.direction);
+    }
+    if (options.alert_triggered !== undefined) {
+      atRiskQuery.where('file_tracking.alert_triggered', options.alert_triggered);
+    }
+
+    const [{ count: atRiskCount }] = await atRiskQuery.count('* as count');
+    const at_risk_count = parseInt(String(atRiskCount), 10);
+
+    const total_expected = counts.pending + counts.arrived + counts.late + counts.missing;
+
+    return {
+      total_expected,
+      arrived_on_time,
+      arrived_late: counts.late,
+      missing: counts.missing,
+      pending: counts.pending,
+      at_risk_count,
     };
   }
 }

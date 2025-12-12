@@ -86,6 +86,7 @@ export const mockWatcher: Watcher = {
   direction: 'inward',
   sla_enabled: true,
   sla_threshold_minutes: 60,
+  poll_interval_minutes: 60,
   last_check_at: new Date().toISOString(),
   last_check_status: 'success',
   last_files_detected: 5,

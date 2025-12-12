@@ -193,3 +193,24 @@ export const getSLASummary = async (params?: {
   }
   return response.data.data;
 };
+
+// ============================================================================
+// File Listing for Manual Override
+// ============================================================================
+
+export type S3File = {
+  file_name: string;
+  file_path: string;
+  file_size: number;
+  last_modified: Date;
+};
+
+/**
+ * List files from source for a watcher (for manual override)
+ */
+export const getWatcherFiles = async (watcherId: number): Promise<S3File[]> => {
+  const response = await apiClient.get<ApiResponse<S3File[]>>(
+    `/api/watchers/${watcherId}/files`
+  );
+  return response.data.data || [];
+};
