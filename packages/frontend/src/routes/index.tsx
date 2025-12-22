@@ -8,6 +8,7 @@ import ConnectionsPage from '@/pages/ConnectionsPage';
 import SchedulesPage from '@/pages/SchedulesPage';
 import DepartmentsPage from '@/pages/DepartmentsPage';
 import FileTrackingPage from '@/pages/FileTrackingPage';
+import AnalyticsDashboardPage from '@/pages/AnalyticsDashboardPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export const router = createBrowserRouter([
@@ -46,6 +47,10 @@ export const router = createBrowserRouter([
       {
         path: 'file-tracking',
         element: <FileTrackingPage />,
+      },
+      {
+        path: 'analytics',
+        element: <AnalyticsDashboardPage />,
       },
       {
         path: 'notifications',

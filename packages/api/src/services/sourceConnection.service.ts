@@ -12,6 +12,7 @@ import {
 import { db } from '../config/database';
 import { NotFoundError, ValidationError } from '../utils/errors';
 import { S3Client, ListObjectsV2Command, HeadBucketCommand } from '@aws-sdk/client-s3';
+import SFTPClient from 'ssh2-sftp-client';
 
 /**
  * Source Connection Service
@@ -63,6 +64,8 @@ export class SourceConnectionService {
     switch (request.type) {
       case 'S3':
         return this.testS3Connection(request.connection_config, startTime);
+      case 'SFTP':
+        return this.testSFTPConnection(request.connection_config, startTime);
       // Add other connection types here
       default:
         return {
@@ -148,6 +151,109 @@ export class SourceConnectionService {
         response.canAuthenticate = true;
         response.errorMessage = `Access denied to bucket '${bucket}'`;
       }
+    }
+
+    return response;
+  }
+
+  /**
+   * Test SFTP connection
+   */
+  private async testSFTPConnection(
+    config: any,
+    startTime: number
+  ): Promise<TestSourceConnectionResponse> {
+    // Parse config (support both camelCase and snake_case)
+    const host = config.host;
+    const port = config.port || 22;
+    const username = config.username;
+    const password = config.password;
+    const privateKey = config.privateKey || config.private_key;
+    const passphrase = config.passphrase;
+    const pathPrefix = config.pathPrefix || config.path_prefix || '/';
+
+    // Validate required fields
+    if (!host || !username) {
+      return {
+        success: false,
+        canAuthenticate: false,
+        canAccess: false,
+        canList: false,
+        errorMessage: 'Missing required SFTP configuration (host or username)',
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
+    // Validate auth method
+    if (!password && !privateKey) {
+      return {
+        success: false,
+        canAuthenticate: false,
+        canAccess: false,
+        canList: false,
+        errorMessage: 'Either password or private key must be provided',
+        latencyMs: Date.now() - startTime,
+      };
+    }
+
+    const sftp = new SFTPClient();
+    const response: TestSourceConnectionResponse = {
+      success: false,
+      canAuthenticate: false,
+      canAccess: false,
+      canList: false,
+    };
+
+    try {
+      // Build connection config
+      const connectConfig: any = { host, port, username, readyTimeout: 20000 };
+
+      // Add auth credentials
+      if (privateKey) {
+        connectConfig.privateKey = privateKey;
+        if (passphrase) connectConfig.passphrase = passphrase;
+      } else {
+        connectConfig.password = password;
+      }
+
+      // Test connection
+      await sftp.connect(connectConfig);
+      response.canAuthenticate = true;
+
+      // Test directory listing
+      const fileList = await sftp.list(pathPrefix);
+      response.canAccess = true;
+      response.canList = true;
+      response.success = true;
+      response.sampleItems = fileList.slice(0, 5).map((item) => item.name);
+      response.latencyMs = Date.now() - startTime;
+
+    } catch (error: any) {
+      response.latencyMs = Date.now() - startTime;
+      const errorMessage = error.message || 'Unknown error';
+
+      // Parse common errors
+      if (errorMessage.includes('All configured authentication methods failed')) {
+        response.errorMessage = 'Authentication failed: Invalid credentials';
+      } else if (errorMessage.includes('ENOTFOUND') || errorMessage.includes('EHOSTUNREACH')) {
+        response.errorMessage = `Host '${host}' is unreachable`;
+      } else if (errorMessage.includes('ECONNREFUSED')) {
+        response.errorMessage = `Connection refused on port ${port}`;
+      } else if (errorMessage.includes('ETIMEDOUT')) {
+        response.errorMessage = `Connection timeout to '${host}:${port}'`;
+      } else if (errorMessage.includes('Permission denied')) {
+        response.canAuthenticate = true;
+        response.errorMessage = `Permission denied accessing path '${pathPrefix}'`;
+      } else if (errorMessage.includes('privateKey') || errorMessage.includes('Cannot parse privateKey')) {
+        response.errorMessage = 'Invalid private key format or passphrase';
+      } else if (errorMessage.includes('No such file')) {
+        response.canAuthenticate = true;
+        response.errorMessage = `Path '${pathPrefix}' does not exist`;
+      } else {
+        response.errorMessage = `SFTP connection failed: ${errorMessage}`;
+      }
+    } finally {
+      await sftp.end().catch(() => {});
     }
 
     return response;

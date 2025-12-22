@@ -158,7 +158,7 @@ describe('SourceConnectionService', () => {
 
     it('should return error for unsupported connection type', async () => {
       const result = await service.testConnection({
-        type: 'SFTP' as any,
+        type: 'FTP' as any,
         connection_config: {},
       });
 

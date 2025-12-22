@@ -43,6 +43,8 @@ export interface SFTPConnectionConfig {
   username: string;
   password?: string;
   private_key?: string;
+  passphrase?: string;
+  auth_method?: 'password' | 'privateKey';
   path_prefix?: string;
 }
 

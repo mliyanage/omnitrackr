@@ -48,6 +48,7 @@ export interface SFTPConnectionConfig extends BaseSourceConnectionConfig {
   password?: string;
   privateKey?: string;
   passphrase?: string;
+  authMethod?: 'password' | 'privateKey';
 }
 
 /**

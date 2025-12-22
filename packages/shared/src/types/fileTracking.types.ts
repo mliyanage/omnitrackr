@@ -78,6 +78,7 @@ export interface FileTrackingQueryOptions {
   expected_from?: Date;
   expected_to?: Date;
   direction?: DirectionType;
+  department_codes?: string[];
   page?: number;
   limit?: number;
 }

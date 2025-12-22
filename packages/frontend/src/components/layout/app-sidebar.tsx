@@ -11,6 +11,7 @@ import {
   Calendar,
   Building2,
   Cable,
+  BarChart3,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -63,6 +64,11 @@ const navItems = [
     title: 'File Tracking',
     href: '/file-tracking',
     icon: FileSearch,
+  },
+  {
+    title: 'Analytics',
+    href: '/analytics',
+    icon: BarChart3,
   },
   {
     title: 'Notifications',

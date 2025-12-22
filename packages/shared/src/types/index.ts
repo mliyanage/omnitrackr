@@ -35,5 +35,8 @@ export type {
   MissingFileAlert,
 } from './fileTracking.types';
 
+// Dashboard types
+export * from './dashboard.types';
+
 // export * from './notification.types'; // TODO: Add later
 // export * from './user.types'; // TODO: Add later

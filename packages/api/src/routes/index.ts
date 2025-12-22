@@ -5,6 +5,7 @@ import scheduleRoutes from './schedule.routes';
 import watcherRoutes from './watcher.routes';
 import refDataRoutes from './refData.routes';
 import fileTrackingRoutes from './fileTracking.routes';
+import dashboardRoutes from './dashboard.routes';
 
 const router = Router();
 
@@ -33,6 +34,7 @@ router.use('/schedules', scheduleRoutes);
 router.use('/watchers', watcherRoutes);
 router.use('/ref-data', refDataRoutes);
 router.use('/file-tracking', fileTrackingRoutes);
+router.use('/dashboard', dashboardRoutes);
 
 // TODO: Add more routes as we build them
 // router.use('/watcher-logs', watcherLogRoutes);

@@ -7,6 +7,11 @@ import {
   FileTrackingQueryOptions,
   SLADashboardSummary,
   MissingFileAlert,
+  TimeSeriesDataPoint,
+  DirectionBreakdown,
+  TopWatcherStats,
+  PeriodComparison,
+  PeriodStats,
 } from '../types';
 
 /**
@@ -482,6 +487,224 @@ export class FileTrackingRepository extends BaseRepository {
       missing: counts.missing,
       pending: counts.pending,
       at_risk_count,
+    };
+  }
+
+  /**
+   * Get time-series statistics for dashboard charts
+   */
+  async getTimeSeriesStats(options: {
+    from_date: Date;
+    to_date: Date;
+    watcher_id?: number;
+    department_codes?: string[];
+    direction?: 'inward' | 'outward' | 'bidirectional';
+    bucket_size?: 'hour' | 'day';
+  }): Promise<TimeSeriesDataPoint[]> {
+    const bucketSize = options.bucket_size || 'day';
+    let query = this.db('file_tracking')
+      .select(
+        this.db.raw(`DATE_TRUNC('${bucketSize}', expected_at) as time_bucket`),
+        this.db.raw('COUNT(*) as total_expected'),
+        this.db.raw("COUNT(*) FILTER (WHERE tracking_status = 'arrived') as arrived_on_time"),
+        this.db.raw("COUNT(*) FILTER (WHERE tracking_status = 'late') as arrived_late"),
+        this.db.raw("COUNT(*) FILTER (WHERE tracking_status = 'missing') as missing"),
+        this.db.raw("COUNT(*) FILTER (WHERE tracking_status = 'pending') as pending")
+      )
+      .whereBetween('expected_at', [options.from_date, options.to_date]);
+
+    // Join watchers if filtering by department or direction
+    if (options.department_codes || options.direction) {
+      query = query.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
+    }
+
+    if (options.watcher_id) {
+      query = query.where('file_tracking.watcher_id', options.watcher_id);
+    }
+
+    if (options.department_codes && options.department_codes.length > 0) {
+      query = query.whereIn('watchers.department_code', options.department_codes);
+    }
+
+    if (options.direction) {
+      query = query.where('watchers.direction', options.direction);
+    }
+
+    query = query
+      .groupBy('time_bucket')
+      .orderBy('time_bucket', 'asc');
+
+    return query;
+  }
+
+  /**
+   * Get file counts by direction with success rates
+   */
+  async getDirectionCounts(options: {
+    from_date: Date;
+    to_date: Date;
+    watcher_id?: number;
+    department_codes?: string[];
+  }): Promise<DirectionBreakdown> {
+    const query = this.db('file_tracking')
+      .join('watchers', 'file_tracking.watcher_id', 'watchers.id')
+      .whereBetween('file_tracking.expected_at', [options.from_date, options.to_date]);
+
+    if (options.watcher_id) {
+      query.where('file_tracking.watcher_id', options.watcher_id);
+    }
+
+    if (options.department_codes && options.department_codes.length > 0) {
+      query.whereIn('watchers.department_code', options.department_codes);
+    }
+
+    const results = await query
+      .select('watchers.direction')
+      .count('* as total_count')
+      .select(this.db.raw("COUNT(CASE WHEN file_tracking.tracking_status = 'arrived' THEN 1 END) as arrived_count"))
+      .groupBy('watchers.direction');
+
+    const breakdown = {
+      inward: 0,
+      inward_success_rate: 0,
+      outward: 0,
+      outward_success_rate: 0,
+      total: 0,
+    };
+
+    results.forEach((row: any) => {
+      const direction = row.direction as 'inward' | 'outward';
+      const totalCount = parseInt(String(row.total_count), 10);
+      const arrivedCount = parseInt(String(row.arrived_count || 0), 10);
+      const successRate = totalCount > 0 ? (arrivedCount / totalCount) * 100 : 0;
+
+      if (direction === 'inward') {
+        breakdown.inward = totalCount;
+        breakdown.inward_success_rate = successRate;
+      } else if (direction === 'outward') {
+        breakdown.outward = totalCount;
+        breakdown.outward_success_rate = successRate;
+      }
+
+      breakdown.total += totalCount;
+    });
+
+    return breakdown;
+  }
+
+  /**
+   * Get top watchers by file count for a period
+   */
+  async getTopWatchersByPeriod(options: {
+    from_date: Date;
+    to_date: Date;
+    department_codes?: string[];
+    direction?: 'inward' | 'outward' | 'bidirectional';
+    limit?: number;
+  }): Promise<TopWatcherStats[]> {
+    const limit = options.limit || 5;
+
+    let query = this.db('file_tracking')
+      .join('watchers', 'file_tracking.watcher_id', 'watchers.id')
+      .whereBetween('file_tracking.expected_at', [options.from_date, options.to_date]);
+
+    if (options.department_codes && options.department_codes.length > 0) {
+      query = query.whereIn('watchers.department_code', options.department_codes);
+    }
+
+    if (options.direction) {
+      query = query.where('watchers.direction', options.direction);
+    }
+
+    const results = await query
+      .select(
+        'watchers.id as watcher_id',
+        'watchers.name as watcher_name',
+        'watchers.department_code',
+        'watchers.direction',
+        this.db.raw('COUNT(*) as total_files'),
+        this.db.raw("COUNT(*) FILTER (WHERE file_tracking.tracking_status = 'arrived') as arrived_on_time"),
+        this.db.raw("COUNT(*) FILTER (WHERE file_tracking.tracking_status = 'late') as arrived_late"),
+        this.db.raw("COUNT(*) FILTER (WHERE file_tracking.tracking_status = 'missing') as missing"),
+        this.db.raw("COUNT(*) FILTER (WHERE file_tracking.tracking_status = 'pending') as pending")
+      )
+      .groupBy('watchers.id', 'watchers.name', 'watchers.department_code', 'watchers.direction')
+      .orderBy('total_files', 'desc')
+      .limit(limit);
+
+    return results.map((row: any) => ({
+      watcher_id: row.watcher_id,
+      watcher_name: row.watcher_name,
+      department_code: row.department_code,
+      direction: row.direction,
+      total_files: parseInt(String(row.total_files), 10),
+      arrived_on_time: parseInt(String(row.arrived_on_time), 10),
+      arrived_late: parseInt(String(row.arrived_late), 10),
+      missing: parseInt(String(row.missing), 10),
+      pending: parseInt(String(row.pending), 10),
+      success_rate: row.total_files > 0
+        ? (parseInt(String(row.arrived_on_time), 10) / parseInt(String(row.total_files), 10)) * 100
+        : 0,
+    }));
+  }
+
+  /**
+   * Get comparison between current and previous periods
+   */
+  async getPeriodComparison(options: {
+    current_from: Date;
+    current_to: Date;
+    previous_from: Date;
+    previous_to: Date;
+    department_codes?: string[];
+    direction?: 'inward' | 'outward' | 'bidirectional';
+  }): Promise<PeriodComparison> {
+    // Get stats for current period
+    const current = await this.getAggregatedStats({
+      expected_from: options.current_from,
+      expected_to: options.current_to,
+      department_codes: options.department_codes,
+      direction: options.direction,
+    });
+
+    // Get stats for previous period
+    const previous = await this.getAggregatedStats({
+      expected_from: options.previous_from,
+      expected_to: options.previous_to,
+      department_codes: options.department_codes,
+      direction: options.direction,
+    });
+
+    // Calculate percentage changes
+    const total_expected_change = previous.total_expected > 0
+      ? ((current.total_expected - previous.total_expected) / previous.total_expected) * 100
+      : 0;
+
+    const currentSuccessRate = (current.arrived_on_time / Math.max(current.total_expected, 1)) * 100;
+    const previousSuccessRate = (previous.arrived_on_time / Math.max(previous.total_expected, 1)) * 100;
+    const success_rate_change = currentSuccessRate - previousSuccessRate;
+
+    return {
+      current: {
+        total_expected: current.total_expected,
+        arrived_on_time: current.arrived_on_time,
+        arrived_late: current.arrived_late,
+        missing: current.missing,
+        pending: current.pending,
+        success_rate: currentSuccessRate,
+      },
+      previous: {
+        total_expected: previous.total_expected,
+        arrived_on_time: previous.arrived_on_time,
+        arrived_late: previous.arrived_late,
+        missing: previous.missing,
+        pending: previous.pending,
+        success_rate: previousSuccessRate,
+      },
+      changes: {
+        total_expected_change,
+        success_rate_change,
+      },
     };
   }
 }

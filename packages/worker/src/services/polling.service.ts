@@ -1,4 +1,5 @@
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
+import SFTPClient from 'ssh2-sftp-client';
 import { Knex } from 'knex';
 import {
   Watcher,
@@ -98,9 +99,11 @@ export class PollingService {
           result = await this.pollS3(watcher, connection, startTime, lastCheckAt);
           break;
         case 'SFTP':
+          result = await this.pollSFTP(watcher, connection, startTime, lastCheckAt);
+          break;
         case 'FTP':
         case 'FTPS':
-          // TODO: Implement SFTP/FTP polling
+          // TODO: Implement FTP/FTPS polling
           throw new Error(`${connection.type} polling not yet implemented`);
         default:
           throw new Error(`Unsupported connection type: ${connection.type}`);
@@ -263,6 +266,133 @@ export class PollingService {
     } while (continuationToken);
 
     // Determine which files are new vs duplicates based on last modified date
+    const filesNew = detectedFiles.filter(f => f.isNew).length;
+    const filesDuplicate = detectedFiles.filter(f => !f.isNew).length;
+
+    return {
+      watcherId: watcher.id,
+      success: true,
+      filesDetected: detectedFiles.length,
+      filesNew,
+      filesDuplicate,
+      objectsScanned,
+      apiCallsMade,
+      bytesTransferred,
+      durationMs: Date.now() - startTime,
+      detectedFiles,
+    };
+  }
+
+  /**
+   * Poll SFTP server for files
+   * Mirrors the S3 polling pattern for consistency
+   */
+  private async pollSFTP(
+    watcher: Watcher,
+    connection: SourceConnection,
+    startTime: number,
+    lastCheckAt: Date | null
+  ): Promise<PollResult> {
+    const config = connection.connection_config as any;
+
+    // Initialize SFTP client
+    const sftp = new SFTPClient();
+
+    let objectsScanned = 0;
+    let apiCallsMade = 0;
+    let bytesTransferred = 0;
+    const detectedFiles: DetectedFile[] = [];
+
+    try {
+      // Build SFTP connection config
+      const connectConfig: any = {
+        host: config.host,
+        port: config.port || 22,
+        username: config.username,
+        readyTimeout: 20000, // 20 second timeout
+      };
+
+      // Add authentication credentials
+      if (config.privateKey || config.private_key) {
+        connectConfig.privateKey = config.privateKey || config.private_key;
+        if (config.passphrase) {
+          connectConfig.passphrase = config.passphrase;
+        }
+      } else {
+        connectConfig.password = config.password;
+      }
+
+      // Connect to SFTP server
+      await sftp.connect(connectConfig);
+      apiCallsMade++;
+
+      // Determine path to list
+      let pathToList = watcher.file_path_pattern || config.path_prefix || config.pathPrefix || '/';
+
+      // Normalize path: ensure leading slash, remove trailing slash
+      if (!pathToList.startsWith('/')) {
+        pathToList = '/' + pathToList;
+      }
+      if (pathToList !== '/' && pathToList.endsWith('/')) {
+        pathToList = pathToList.slice(0, -1);
+      }
+
+      // List files in directory
+      const fileList = await sftp.list(pathToList);
+      apiCallsMade++;
+
+      // Process each item in the directory
+      for (const item of fileList) {
+        objectsScanned++;
+
+        // Skip directories - only process files
+        if (item.type !== '-') {
+          continue;
+        }
+
+        const fileName = item.name;
+
+        // Check if file matches the watcher's pattern
+        if (this.matchesPattern(fileName, watcher)) {
+          // Convert modifyTime to Date
+          const fileLastModified = new Date(item.modifyTime);
+
+          // File is "new" if modified after last check
+          const isNew = !lastCheckAt || fileLastModified.getTime() > lastCheckAt.getTime();
+
+          // Build full file path
+          const filePath = pathToList === '/'
+            ? `/${fileName}`
+            : `${pathToList}/${fileName}`;
+
+          detectedFiles.push({
+            fileName,
+            filePath,
+            fileSize: item.size || 0,
+            lastModified: fileLastModified,
+            isNew,
+          });
+
+          bytesTransferred += item.size || 0;
+        }
+      }
+
+      // Close SFTP connection
+      await sftp.end();
+
+    } catch (error) {
+      // Ensure connection is closed on error
+      try {
+        await sftp.end();
+      } catch (closeError) {
+        // Ignore close errors
+      }
+
+      // Re-throw for pollWatcher() to handle
+      throw error;
+    }
+
+    // Calculate new vs duplicate files
     const filesNew = detectedFiles.filter(f => f.isNew).length;
     const filesDuplicate = detectedFiles.filter(f => !f.isNew).length;
 
