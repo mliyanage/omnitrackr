@@ -33,7 +33,7 @@ import {
 } from '@/components/ui/card';
 import { createConnection, updateConnection, testConnection } from '@/api/connections.api';
 import type { SourceConnection } from '@/types';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { showSuccess, showError } from '@/lib/toast';
 
 // S3 Configuration Schema
@@ -150,6 +150,44 @@ export function ConnectionForm({ connection, onSuccess, onCancel }: ConnectionFo
   const connectionType = form.watch('type');
   // Type-safe control for FormField components
   const control = form.control;
+
+  // Initialize connection_config when type changes
+  useEffect(() => {
+    if (!isEditing) {
+      switch (connectionType) {
+        case 'S3':
+          form.setValue('connection_config', {
+            bucket: '',
+            region: 'us-east-1',
+            path_prefix: '',
+            access_key_id: '',
+            secret_access_key: '',
+          } as any);
+          break;
+        case 'SFTP':
+          form.setValue('connection_config', {
+            host: '',
+            port: 22,
+            username: '',
+            auth_method: 'password',
+            password: '',
+            private_key: '',
+            passphrase: '',
+            path_prefix: '',
+          } as any);
+          setSftpAuthMethod('password');
+          break;
+        case 'AZURE_BLOB':
+          form.setValue('connection_config', {
+            account_name: '',
+            container: '',
+            account_key: '',
+            path_prefix: '',
+          } as any);
+          break;
+      }
+    }
+  }, [connectionType, isEditing]);
 
   const createMutation = useMutation({
     mutationFn: createConnection,
