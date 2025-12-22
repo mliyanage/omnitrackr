@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5173/api';
+import apiClient from './client';
 
 export interface DashboardQueryParams {
   from_date: string;
@@ -81,8 +79,8 @@ export const getDashboardSummary = async (
     queryParams.append('direction', params.direction);
   }
 
-  const response = await axios.get(
-    `${API_BASE_URL}/dashboard/summary?${queryParams.toString()}`
+  const response = await apiClient.get(
+    `/api/dashboard/summary?${queryParams.toString()}`
   );
 
   return response.data.data;
