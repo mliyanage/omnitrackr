@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { RefreshCw } from 'lucide-react';
+import { type DateRange } from 'react-day-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,8 +12,18 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Card } from '@/components/ui/card';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
 import { FileTrackingTable } from '@/components/file-tracking/FileTrackingTable';
 import { FileSelectionSheet } from '@/components/file-tracking/FileSelectionSheet';
+import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import {
   getFileTracking,
   getSLASummary,
@@ -23,7 +34,7 @@ import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'pending' | 'arrived' | 'late' | 'missing';
 type AlertFilter = 'all' | 'true' | 'false';
-type DateRangeFilter = '24h' | '7d' | '30d';
+type DateRangeFilter = '24h' | '7d' | '30d' | 'custom';
 type DirectionFilter = 'all' | 'inward' | 'outward' | 'bidirectional';
 
 export default function FileTrackingPage() {
@@ -33,11 +44,11 @@ export default function FileTrackingPage() {
   const [alertFilter, setAlertFilter] = useState<AlertFilter>('all');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
   const [dateRange, setDateRange] = useState<DateRangeFilter>('24h');
+  const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [searchQuery, setSearchQuery] = useState('');
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
-  const [allLoadedRecords, setAllLoadedRecords] = useState<FileTracking[]>([]);
 
   // File selection sheet state
   const [isFileSelectionSheetOpen, setIsFileSelectionSheetOpen] = useState(false);
@@ -45,6 +56,14 @@ export default function FileTrackingPage() {
 
   // Calculate date range - memoized to prevent infinite loops
   const dateRangeValues = useMemo(() => {
+    // Use custom date range if selected and both dates are set
+    if (dateRange === 'custom' && customDateRange?.from && customDateRange?.to) {
+      return {
+        from: customDateRange.from.toISOString(),
+        to: customDateRange.to.toISOString(),
+      };
+    }
+
     const now = new Date();
     let from: Date;
 
@@ -58,20 +77,25 @@ export default function FileTrackingPage() {
       case '30d':
         from = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
+      case 'custom':
+        // If custom is selected but no dates set, default to last 7 days
+        from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     }
 
     return {
       from: from.toISOString(),
       to: now.toISOString(),
     };
-  }, [dateRange]);
+  }, [dateRange, customDateRange]);
 
   // Fetch file tracking records
   const {
     data: fileTrackingData,
     isLoading: isLoadingRecords,
     refetch: refetchRecords,
-    dataUpdatedAt,
   } = useQuery({
     queryKey: [
       'file-tracking',
@@ -131,45 +155,61 @@ export default function FileTrackingPage() {
     queryFn: () => getWatchers(),
   });
 
-  // Accumulate records when new data arrives
-  useEffect(() => {
-    if (fileTrackingData?.data) {
-      if (currentPage === 1) {
-        // First page - replace all records
-        setAllLoadedRecords(fileTrackingData.data);
-      } else {
-        // Subsequent pages - append records
-        setAllLoadedRecords((prev) => [...prev, ...fileTrackingData.data]);
-      }
-    }
-  }, [dataUpdatedAt, currentPage, fileTrackingData]); // Use dataUpdatedAt to detect data changes
-
   // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
-    setAllLoadedRecords([]);
-  }, [statusFilter, watcherFilter, alertFilter, directionFilter, dateRangeValues]);
+  }, [statusFilter, watcherFilter, alertFilter, directionFilter, dateRangeValues, searchQuery]);
 
-  // Client-side filtering for search
-  const filteredRecords = allLoadedRecords.filter((record) => {
-    if (!searchQuery) return true;
+  // Use fileTrackingData.data directly (no accumulation needed for traditional pagination)
+  const displayedRecords = fileTrackingData?.data || [];
 
-    const query = searchQuery.toLowerCase();
-    return (
-      record.expected_pattern?.toLowerCase().includes(query) ||
-      record.file_name?.toLowerCase().includes(query) ||
-      record.watcher?.name?.toLowerCase().includes(query)
-    );
-  });
+  // Generate page numbers for pagination
+  const generatePageNumbers = () => {
+    if (!fileTrackingData?.pagination) return [];
+
+    const { totalPages } = fileTrackingData.pagination;
+    const pages: (number | 'ellipsis')[] = [];
+
+    if (totalPages <= 7) {
+      // Show all pages if 7 or fewer
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      // Always show first page
+      pages.push(1);
+
+      if (currentPage > 3) {
+        pages.push('ellipsis');
+      }
+
+      // Show pages around current page
+      const start = Math.max(2, currentPage - 1);
+      const end = Math.min(totalPages - 1, currentPage + 1);
+
+      for (let i = start; i <= end; i++) {
+        pages.push(i);
+      }
+
+      if (currentPage < totalPages - 2) {
+        pages.push('ellipsis');
+      }
+
+      // Always show last page
+      pages.push(totalPages);
+    }
+
+    return pages;
+  };
 
   const handleRefresh = () => {
     setCurrentPage(1);
-    setAllLoadedRecords([]);
     refetchRecords();
   };
 
-  const handleLoadMore = () => {
-    setCurrentPage((prev) => prev + 1);
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleMarkAsArrived = (record: FileTracking) => {
@@ -335,43 +375,80 @@ export default function FileTrackingPage() {
             <SelectItem value="24h">Last 24 Hours</SelectItem>
             <SelectItem value="7d">Last 7 Days</SelectItem>
             <SelectItem value="30d">Last 30 Days</SelectItem>
+            <SelectItem value="custom">Custom Range</SelectItem>
           </SelectContent>
         </Select>
+
+        {/* Custom Date Range Picker */}
+        {dateRange === 'custom' && (
+          <DateRangePicker value={customDateRange} onChange={setCustomDateRange} />
+        )}
       </div>
 
       {/* Table Section */}
       <FileTrackingTable
-        records={filteredRecords}
+        records={displayedRecords}
         isLoading={isLoadingRecords}
         onMarkAsArrived={handleMarkAsArrived}
       />
 
       {/* Pagination Section */}
-      {fileTrackingData?.pagination && (
+      {fileTrackingData?.pagination && fileTrackingData.pagination.totalPages > 1 && (
         <div className="flex flex-col items-center gap-4 mt-6">
           {/* Record Count */}
           <div className="text-sm text-muted-foreground">
-            Showing {allLoadedRecords.length} of {fileTrackingData.pagination.total} records
+            Showing {(currentPage - 1) * fileTrackingData.pagination.limit + 1} to{' '}
+            {Math.min(currentPage * fileTrackingData.pagination.limit, fileTrackingData.pagination.total)} of{' '}
+            {fileTrackingData.pagination.total} records
+            {searchQuery && ` (filtered by search)`}
           </div>
 
-          {/* Load More Button */}
-          {currentPage < fileTrackingData.pagination.totalPages && (
-            <Button
-              onClick={handleLoadMore}
-              disabled={isLoadingRecords}
-              variant="outline"
-              className="w-full md:w-auto"
-            >
-              {isLoadingRecords ? (
-                <>
-                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                'Load More'
+          {/* Pagination Controls */}
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
+                  className={cn(
+                    currentPage === 1 && 'pointer-events-none opacity-50',
+                    'cursor-pointer'
+                  )}
+                />
+              </PaginationItem>
+
+              {generatePageNumbers().map((page, index) =>
+                page === 'ellipsis' ? (
+                  <PaginationItem key={`ellipsis-${index}`}>
+                    <PaginationEllipsis />
+                  </PaginationItem>
+                ) : (
+                  <PaginationItem key={page}>
+                    <PaginationLink
+                      onClick={() => handlePageChange(page)}
+                      isActive={currentPage === page}
+                      className="cursor-pointer"
+                    >
+                      {page}
+                    </PaginationLink>
+                  </PaginationItem>
+                )
               )}
-            </Button>
-          )}
+
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() =>
+                    currentPage < fileTrackingData.pagination.totalPages &&
+                    handlePageChange(currentPage + 1)
+                  }
+                  className={cn(
+                    currentPage === fileTrackingData.pagination.totalPages &&
+                      'pointer-events-none opacity-50',
+                    'cursor-pointer'
+                  )}
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
         </div>
       )}
 

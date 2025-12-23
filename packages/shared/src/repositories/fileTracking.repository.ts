@@ -342,7 +342,9 @@ export class FileTrackingRepository extends BaseRepository {
     if (options.direction) {
       countQuery.clearSelect();
     }
-    const [{ count: total }] = await countQuery.count('* as count');
+
+    // Use COUNT(DISTINCT file_tracking.id) to avoid double-counting with joins
+    const [{ count: total }] = await countQuery.countDistinct('file_tracking.id as count');
     const totalCount = parseInt(String(total), 10);
 
     // Get paginated data
@@ -375,8 +377,8 @@ export class FileTrackingRepository extends BaseRepository {
   }> {
     let query = this.db(this.tableName);
 
-    // Apply join if direction filter is needed
-    if (options.direction) {
+    // Apply join if direction or department filter is needed
+    if (options.direction || (options.department_codes && options.department_codes.length > 0)) {
       query = query.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
     }
 
@@ -398,6 +400,9 @@ export class FileTrackingRepository extends BaseRepository {
     }
     if (options.direction) {
       query = query.where('watchers.direction', options.direction);
+    }
+    if (options.department_codes && options.department_codes.length > 0) {
+      query = query.whereIn('watchers.department_code', options.department_codes);
     }
 
     // Get counts by status using SQL aggregation
@@ -424,7 +429,7 @@ export class FileTrackingRepository extends BaseRepository {
       .whereRaw('arrived_at <= sla_deadline');
 
     // Apply same filters to on-time query
-    if (options.direction) {
+    if (options.direction || (options.department_codes && options.department_codes.length > 0)) {
       onTimeQuery.join('watchers', 'file_tracking.watcher_id', 'watchers.id');
     }
     if (options.watcher_id) {
@@ -438,6 +443,9 @@ export class FileTrackingRepository extends BaseRepository {
     }
     if (options.direction) {
       onTimeQuery.where('watchers.direction', options.direction);
+    }
+    if (options.department_codes && options.department_codes.length > 0) {
+      onTimeQuery.whereIn('watchers.department_code', options.department_codes);
     }
     if (options.alert_triggered !== undefined) {
       onTimeQuery.where('file_tracking.alert_triggered', options.alert_triggered);
