@@ -50,6 +50,9 @@ export default function FileTrackingPage() {
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
 
+  // Refresh trigger to force date recalculation
+  const [lastRefreshTime, setLastRefreshTime] = useState(Date.now());
+
   // File selection sheet state
   const [isFileSelectionSheetOpen, setIsFileSelectionSheetOpen] = useState(false);
   const [selectedTrackingRecord, setSelectedTrackingRecord] = useState<FileTracking | null>(null);
@@ -89,7 +92,7 @@ export default function FileTrackingPage() {
       from: from.toISOString(),
       to: now.toISOString(),
     };
-  }, [dateRange, customDateRange]);
+  }, [dateRange, customDateRange, lastRefreshTime]);
 
   // Fetch file tracking records
   const {
@@ -204,6 +207,7 @@ export default function FileTrackingPage() {
 
   const handleRefresh = () => {
     setCurrentPage(1);
+    setLastRefreshTime(Date.now()); // Trigger date range recalculation
     refetchRecords();
   };
 
