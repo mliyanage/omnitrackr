@@ -94,6 +94,15 @@ export default function FileTrackingPage() {
     };
   }, [dateRange, customDateRange, lastRefreshTime]);
 
+  // Auto-refresh: Update date range every 30 seconds to fetch latest records
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLastRefreshTime(Date.now());
+    }, 30000); // 30 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
   // Fetch file tracking records
   const {
     data: fileTrackingData,
@@ -123,7 +132,6 @@ export default function FileTrackingPage() {
         page: currentPage,
         limit: 25,
       }),
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
     staleTime: 0, // Always fetch fresh data, don't use stale cache
     refetchOnMount: true,
   });
@@ -148,7 +156,6 @@ export default function FileTrackingPage() {
           alertFilter === 'true' ? true : alertFilter === 'false' ? false : undefined,
         direction: directionFilter !== 'all' ? directionFilter : undefined,
       }),
-    refetchInterval: 30000,
     staleTime: 0,
   });
 
@@ -207,8 +214,7 @@ export default function FileTrackingPage() {
 
   const handleRefresh = () => {
     setCurrentPage(1);
-    setLastRefreshTime(Date.now()); // Trigger date range recalculation
-    refetchRecords();
+    setLastRefreshTime(Date.now()); // Trigger date range recalculation (auto-refetches via queryKey change)
   };
 
   const handlePageChange = (page: number) => {
