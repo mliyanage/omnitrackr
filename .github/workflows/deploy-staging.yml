@@ -10,6 +10,7 @@ on:
       - 'packages/worker/**'
       - 'package.json'
       - 'package-lock.json'
+      - 'Dockerfile'
       - '.github/workflows/deploy-staging.yml'
   workflow_dispatch:  # Allow manual triggering
 
