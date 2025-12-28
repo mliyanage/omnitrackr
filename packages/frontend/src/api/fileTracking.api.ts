@@ -27,6 +27,7 @@ export type FileTracking = {
     id: number;
     name: string;
     department_code?: string;
+    sla_enabled?: boolean;
   };
 };
 

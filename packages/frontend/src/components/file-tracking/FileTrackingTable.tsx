@@ -130,7 +130,7 @@ export function FileTrackingTable({
         </TableHeader>
         <TableBody>
           {records.map((record) => {
-            const badge = getTrackingStatusBadge(record.tracking_status);
+            const badge = getTrackingStatusBadge(record.tracking_status, record.watcher?.sla_enabled);
             const atRisk = isAtRisk(record);
 
             return (

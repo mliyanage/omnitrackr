@@ -39,16 +39,17 @@ export class SLAMonitorService {
   }
 
   /**
-   * Create expected file tracking records for watchers with SLA enabled
+   * Create expected file tracking records for all active watchers
    * This should run daily to create expectations for upcoming polls
+   * SLA fields are populated only for watchers with sla_enabled = true
    */
   async createExpectedFileRecords(lookAheadHours: number = 24): Promise<number> {
     const now = new Date();
     const lookAheadUntil = DateTime.fromJSDate(now).plus({ hours: lookAheadHours }).toJSDate();
 
-    // Get all active watchers with SLA enabled
+    // Get all active watchers (regardless of SLA status)
     const watchers = await this.db('watchers')
-      .where({ status: 'active', sla_enabled: true, deleted_at: null })
+      .where({ status: 'active', deleted_at: null })
       .whereNotNull('schedule_id');
 
     let recordsCreated = 0;
@@ -61,8 +62,8 @@ export class SLAMonitorService {
         const schedule = await this.scheduleRepo.findById(watcher.schedule_id) as any;
         if (!schedule) continue;
 
-        // Calculate SLA threshold (will be same for all records)
-        const slaThresholdMinutes = watcher.sla_threshold_minutes || 60;
+        // Calculate SLA threshold only if SLA is enabled
+        const slaThresholdMinutes = watcher.sla_enabled ? (watcher.sla_threshold_minutes || 60) : null;
 
         // Loop to create multiple expected records within lookahead window
         let currentTime = now;
@@ -86,10 +87,12 @@ export class SLAMonitorService {
           const normalizedNextRun = new Date(nextRun);
           normalizedNextRun.setMilliseconds(0);
 
-          // Calculate SLA deadline for this record
-          const slaDeadline = DateTime.fromJSDate(normalizedNextRun)
-            .plus({ minutes: slaThresholdMinutes })
-            .toJSDate();
+          // Calculate SLA deadline only if SLA is enabled
+          const slaDeadline = watcher.sla_enabled && slaThresholdMinutes
+            ? DateTime.fromJSDate(normalizedNextRun)
+                .plus({ minutes: slaThresholdMinutes })
+                .toJSDate()
+            : null;
 
           // Check if we already have a tracking record for this expectation (within 1 minute tolerance)
           const oneMinuteBefore = DateTime.fromJSDate(normalizedNextRun).minus({ minutes: 1 }).toJSDate();
@@ -101,7 +104,7 @@ export class SLAMonitorService {
             .first();
 
           if (!existing) {
-            // Create tracking record
+            // Create tracking record with conditional SLA fields
             await this.fileTrackingRepo.createExpectedFile({
               watcher_id: watcher.id,
               expected_pattern: watcher.file_name_pattern || '*',
@@ -148,7 +151,8 @@ export class SLAMonitorService {
 
   /**
    * Check for missing and late files
-   * Returns alerts that should be triggered
+   * Returns alerts that should be triggered (only for SLA-enabled watchers)
+   * Updates tracking status to 'missing' for ALL watchers (for visibility)
    */
   async checkForMissingFiles(lookBackHours: number = 24): Promise<SLAAlert[]> {
     const now = new Date();
@@ -160,30 +164,34 @@ export class SLAMonitorService {
 
     // Find file tracking records that are past their SLA deadline
     // and still marked as pending (not arrived)
+    // Note: sla_deadline will be NULL for non-SLA watchers, so they won't match this query
     const overdueRecords = await this.db('file_tracking')
       .where('sla_deadline', '<', now)
       .where('tracking_status', 'pending')
       .where('expected_at', '>=', lookBackFrom)
-      .whereNull('alert_triggered_at');
+      .whereNull('alert_triggered_at')
+      .whereNotNull('sla_deadline'); // Only SLA-enabled watchers have sla_deadline
 
     for (const record of overdueRecords) {
       try {
         // Get watcher details
-        const watcher = await this.watcherRepo.findById(record.watcher_id);
+        const watcher = await this.watcherRepo.findById(record.watcher_id) as any;
         if (!watcher) continue;
 
-        // Update tracking status to missing
+        // Update tracking status to missing for ALL records
         await this.fileTrackingRepo.markAsMissing(record.id);
 
-        // Create alert
-        const alert: any = {
-          fileTracking: record,
-          watcher,
-          alertType: 'sla_breached',
-          message: `File matching pattern "${record.expected_pattern}" was expected at ${record.expected_at} but has not arrived. SLA deadline: ${record.sla_deadline}`,
-        };
+        // Only create alerts for SLA-enabled watchers
+        if (watcher.sla_enabled) {
+          const alert: any = {
+            fileTracking: record,
+            watcher,
+            alertType: 'sla_breached',
+            message: `File matching pattern "${record.expected_pattern}" was expected at ${record.expected_at} but has not arrived. SLA deadline: ${record.sla_deadline}`,
+          };
 
-        alerts.push(alert);
+          alerts.push(alert);
+        }
       } catch (error) {
         console.error(
           `Error checking file tracking record ${record.id}:`,
@@ -192,7 +200,38 @@ export class SLAMonitorService {
       }
     }
 
-    console.log(`🚨 Found ${alerts.length} missing file alerts`);
+    // Also check for non-SLA watchers to mark as missing (no alerts)
+    // For non-SLA watchers, consider files missing if they haven't arrived
+    // within a reasonable time window (e.g., 2x the poll interval or 1 hour)
+    const nonSLAOverdueRecords = await this.db('file_tracking')
+      .join('watchers', 'file_tracking.watcher_id', 'watchers.id')
+      .where('file_tracking.tracking_status', 'pending')
+      .where('file_tracking.expected_at', '>=', lookBackFrom)
+      .whereNull('file_tracking.sla_deadline') // Non-SLA watchers
+      .where('watchers.status', 'active')
+      .select('file_tracking.*');
+
+    let nonSLAMarkedMissing = 0;
+    for (const record of nonSLAOverdueRecords) {
+      try {
+        // For non-SLA watchers, mark as missing if expected time + 1 hour has passed
+        const expectedAt = new Date(record.expected_at);
+        const missingSinceThreshold = DateTime.fromJSDate(expectedAt).plus({ hours: 1 }).toJSDate();
+
+        if (now > missingSinceThreshold) {
+          await this.fileTrackingRepo.markAsMissing(record.id);
+          nonSLAMarkedMissing++;
+        }
+      } catch (error) {
+        console.error(
+          `Error marking non-SLA file tracking record ${record.id} as missing:`,
+          error
+        );
+      }
+    }
+
+    console.log(`🚨 Found ${alerts.length} missing file alerts (SLA-enabled only)`);
+    console.log(`📋 Marked ${nonSLAMarkedMissing} non-SLA files as missing (no alerts)`);
     return alerts;
   }
 

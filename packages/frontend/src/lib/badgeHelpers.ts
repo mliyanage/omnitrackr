@@ -89,17 +89,27 @@ export function getActiveStatusBadge(isActive: boolean | undefined): BadgeConfig
 /**
  * Get badge for file tracking status
  * Maps: pending, arrived, late, missing
+ * Shows "SLA Breached" label only when slaEnabled = true
  */
-export function getTrackingStatusBadge(status: string | undefined): BadgeConfig {
+export function getTrackingStatusBadge(
+  status: string | undefined,
+  slaEnabled?: boolean
+): BadgeConfig {
   switch (status) {
     case 'pending':
       return { variant: 'secondary', label: 'Pending' };
     case 'arrived':
       return { variant: 'success', label: 'Arrived' };
     case 'late':
-      return { variant: 'warning', label: 'Late' };
+      // Show "SLA Breached" only for SLA-enabled watchers
+      return slaEnabled
+        ? { variant: 'destructive', label: 'SLA Breached' }
+        : { variant: 'warning', label: 'Late' };
     case 'missing':
-      return { variant: 'destructive', label: 'Missing' };
+      // Show "SLA Breached" only for SLA-enabled watchers
+      return slaEnabled
+        ? { variant: 'destructive', label: 'SLA Breached' }
+        : { variant: 'warning', label: 'Missing' };
     default:
       return { variant: 'outline', label: 'Unknown' };
   }
