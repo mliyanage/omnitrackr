@@ -7,6 +7,7 @@ on:
     paths:
       - 'packages/api/**'
       - 'packages/shared/**'
+      - 'packages/worker/**'
       - 'package.json'
       - 'package-lock.json'
       - '.github/workflows/deploy-staging.yml'
@@ -37,12 +38,12 @@ jobs:
         run: npm ci
 
       - name: Run tests
-        run: npm run test -- --filter=@omnitrackr/api --filter=@omnitrackr/shared
+        run: npm run test -- --filter=@omnitrackr/api --filter=@omnitrackr/shared --filter=@omnitrackr/worker
         env:
           NODE_ENV: test
 
       - name: Run linter
-        run: npm run lint -- --filter=@omnitrackr/api --filter=@omnitrackr/shared
+        run: npm run lint -- --filter=@omnitrackr/api --filter=@omnitrackr/shared --filter=@omnitrackr/worker
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2
