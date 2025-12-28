@@ -18,6 +18,7 @@ import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { DepartmentMultiSelect } from '@/components/dashboard/DepartmentMultiSelect';
 import { getDashboardSummary } from '@/api/dashboard.api';
 import { getDepartments } from '@/api/refData.api';
+import { getWatchers } from '@/api/watchers.api';
 import { cn } from '@/lib/utils';
 
 type TimeRangePreset = '24h' | '7d' | '30d' | 'custom';
@@ -28,6 +29,7 @@ export default function AnalyticsDashboardPage() {
   const [timeRangePreset, setTimeRangePreset] = useState<TimeRangePreset>('7d');
   const [customDateRange, setCustomDateRange] = useState<DateRange | undefined>();
   const [selectedDepartments, setSelectedDepartments] = useState<string[]>([]);
+  const [watcherFilter, setWatcherFilter] = useState<string>('all');
   const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
 
   // Calculate date range based on preset or custom selection
@@ -68,6 +70,12 @@ export default function AnalyticsDashboardPage() {
     queryFn: getDepartments,
   });
 
+  // Fetch watchers for filter
+  const { data: watchers = [] } = useQuery({
+    queryKey: ['watchers'],
+    queryFn: () => getWatchers(),
+  });
+
   // Fetch dashboard data
   const {
     data: dashboardData,
@@ -78,6 +86,7 @@ export default function AnalyticsDashboardPage() {
       'dashboard-summary',
       dateRange,
       selectedDepartments,
+      watcherFilter,
       directionFilter,
     ],
     queryFn: () =>
@@ -88,6 +97,7 @@ export default function AnalyticsDashboardPage() {
           selectedDepartments.length > 0 && selectedDepartments.length < departments.length
             ? selectedDepartments
             : undefined,
+        watcher_id: watcherFilter !== 'all' ? Number(watcherFilter) : undefined,
         direction: directionFilter !== 'all' ? directionFilter : undefined,
       }),
     refetchInterval: 60000, // Auto-refresh every 60 seconds
@@ -148,6 +158,21 @@ export default function AnalyticsDashboardPage() {
           selectedDepartments={selectedDepartments}
           onChange={setSelectedDepartments}
         />
+
+        {/* Watcher Filter */}
+        <Select value={watcherFilter} onValueChange={setWatcherFilter}>
+          <SelectTrigger className="w-full md:w-[200px]">
+            <SelectValue placeholder="All Watchers" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Watchers</SelectItem>
+            {watchers.map((watcher) => (
+              <SelectItem key={watcher.id} value={watcher.id.toString()}>
+                {watcher.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {/* Direction Filter */}
         <Select

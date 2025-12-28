@@ -212,6 +212,25 @@ export class WatcherController {
       next(error);
     }
   };
+
+  /**
+   * POST /api/watchers/:id/poll
+   * Trigger manual poll for a watcher
+   */
+  triggerPoll = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { id } = req.params;
+      const result = await this.service.triggerPoll(Number(id));
+
+      res.status(200).json({
+        success: true,
+        data: result,
+        message: 'Poll triggered successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
 }
 
 export const watcherController = new WatcherController();

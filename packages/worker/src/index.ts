@@ -2,6 +2,10 @@ import { getDatabase, initializeDatabase, closeDatabase } from './config/databas
 import { PollingWorker } from './workers/polling-worker';
 import { SLAMonitorWorker } from './workers/sla-monitor-worker';
 
+// Export services for use by other packages (e.g., API package for manual triggers)
+export { PollingService } from './services/polling.service';
+export { SLAMonitorService } from './services/sla-monitor.service';
+
 /**
  * OmniTrackr Worker
  *

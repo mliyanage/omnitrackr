@@ -1,6 +1,5 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { DashboardPage } from '@/pages/DashboardPage';
 import { FileSourcesPage } from '@/pages/FileSourcesPage';
 import { InwardFilesPage } from '@/pages/InwardFilesPage';
 import WatchersPage from '@/pages/WatchersPage';
@@ -18,7 +17,7 @@ export const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <DashboardPage />,
+        element: <AnalyticsDashboardPage />,
       },
       {
         path: 'file-sources',
@@ -47,10 +46,6 @@ export const router = createBrowserRouter([
       {
         path: 'file-tracking',
         element: <FileTrackingPage />,
-      },
-      {
-        path: 'analytics',
-        element: <AnalyticsDashboardPage />,
       },
       {
         path: 'notifications',

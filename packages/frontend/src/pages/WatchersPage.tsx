@@ -6,6 +6,9 @@ import {
   Play,
   Pencil,
   Trash2,
+  Ban,
+  CheckCircle,
+  Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +39,8 @@ import {
 } from '@/components/ui/select';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WatcherSheet } from '@/components/watchers/WatcherSheet';
-import { getWatchers, deleteWatcher, triggerWatcherPoll } from '@/api/watchers.api';
+import { WatcherViewSheet } from '@/components/watchers/WatcherViewSheet';
+import { getWatchers, deleteWatcher, triggerWatcherPoll, updateWatcherStatus } from '@/api/watchers.api';
 import { getDepartments } from '@/api/refData.api';
 import { showSuccess, showError } from '@/lib/toast';
 import type { Watcher } from '@/types';
@@ -44,6 +48,8 @@ import type { Watcher } from '@/types';
 export default function WatchersPage() {
   const [selectedWatcher, setSelectedWatcher] = useState<Watcher | undefined>();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [viewWatcher, setViewWatcher] = useState<Watcher | undefined>();
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -87,6 +93,18 @@ export default function WatchersPage() {
     },
   });
 
+  const updateStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: number; status: 'active' | 'paused' | 'disabled' | 'error' }) =>
+      updateWatcherStatus(id, status),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['watchers'] });
+      showSuccess('Watcher status updated successfully');
+    },
+    onError: (error) => {
+      showError(error);
+    },
+  });
+
   const handleCreateNew = () => {
     setSelectedWatcher(undefined);
     setIsSheetOpen(true);
@@ -95,6 +113,11 @@ export default function WatchersPage() {
   const handleEdit = (watcher: Watcher) => {
     setSelectedWatcher(watcher);
     setIsSheetOpen(true);
+  };
+
+  const handleView = (watcher: Watcher) => {
+    setViewWatcher(watcher);
+    setIsViewSheetOpen(true);
   };
 
   const handleDeleteClick = (id: number, name: string) => {
@@ -111,6 +134,10 @@ export default function WatchersPage() {
 
   const handleTriggerPoll = async (id: number) => {
     await pollMutation.mutateAsync(id);
+  };
+
+  const handleStatusChange = async (id: number, status: 'active' | 'paused' | 'disabled' | 'error') => {
+    await updateStatusMutation.mutateAsync({ id, status });
   };
 
   const handleSheetSuccess = () => {
@@ -295,10 +322,30 @@ export default function WatchersPage() {
                           Trigger Poll
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleView(watcher)}>
+                          <Eye className="mr-2 h-4 w-4" />
+                          View
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleEdit(watcher)}>
                           <Pencil className="mr-2 h-4 w-4" />
                           Edit
                         </DropdownMenuItem>
+                        {watcher.status === 'active' ? (
+                          <DropdownMenuItem
+                            onClick={() => handleStatusChange(watcher.id, 'disabled')}
+                          >
+                            <Ban className="mr-2 h-4 w-4" />
+                            Disable
+                          </DropdownMenuItem>
+                        ) : (
+                          <DropdownMenuItem
+                            onClick={() => handleStatusChange(watcher.id, 'active')}
+                          >
+                            <CheckCircle className="mr-2 h-4 w-4" />
+                            Activate
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           onClick={() => handleDeleteClick(watcher.id, watcher.name)}
                           className="text-destructive"
@@ -354,6 +401,13 @@ export default function WatchersPage() {
         onOpenChange={setIsSheetOpen}
         watcher={selectedWatcher}
         onSuccess={handleSheetSuccess}
+      />
+
+      {/* Watcher View Sheet */}
+      <WatcherViewSheet
+        open={isViewSheetOpen}
+        onOpenChange={setIsViewSheetOpen}
+        watcher={viewWatcher}
       />
 
       {/* Delete Confirmation Dialog */}

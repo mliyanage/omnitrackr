@@ -18,7 +18,7 @@ export class DashboardController {
    */
   getSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const { from_date, to_date, department_codes, direction } = req.query;
+      const { from_date, to_date, department_codes, direction, watcher_id } = req.query;
 
       // Validate required params
       if (!from_date || !to_date) {
@@ -43,6 +43,7 @@ export class DashboardController {
         to_date: to_date as string,
         department_codes: departmentCodesArray,
         direction: direction as 'inward' | 'outward' | 'bidirectional' | undefined,
+        watcher_id: watcher_id ? Number(watcher_id) : undefined,
       });
 
       res.status(200).json({

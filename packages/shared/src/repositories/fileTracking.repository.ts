@@ -188,6 +188,29 @@ export class FileTrackingRepository extends BaseRepository {
   }
 
   /**
+   * Delete future pending file tracking records for a watcher
+   * Only deletes records with:
+   * - matching watcher_id
+   * - tracking_status = 'pending'
+   * - expected_at > now (future only)
+   * Preserves audit trail for historical records
+   */
+  async deleteFuturePendingByWatcher(
+    watcherId: number,
+    fromDate?: Date
+  ): Promise<number> {
+    const cutoffDate = fromDate || new Date();
+
+    const deletedCount = await this.db(this.tableName)
+      .where({ watcher_id: watcherId })
+      .where('tracking_status', 'pending')
+      .where('expected_at', '>', cutoffDate)
+      .del();
+
+    return deletedCount;
+  }
+
+  /**
    * Get SLA dashboard summary
    */
   async getSLASummary(
@@ -347,9 +370,16 @@ export class FileTrackingRepository extends BaseRepository {
     const [{ count: total }] = await countQuery.countDistinct('file_tracking.id as count');
     const totalCount = parseInt(String(total), 10);
 
+    // Determine sort order based on date range
+    // For future dates (Next 24 Hours): ascending order (soonest first)
+    // For past dates (Last 24 Hours): descending order (most recent first)
+    const now = new Date();
+    const isFutureQuery = options.expected_to && new Date(options.expected_to) > now;
+    const sortOrder = isFutureQuery ? 'asc' : 'desc';
+
     // Get paginated data
     const data = await query
-      .orderBy('file_tracking.expected_at', 'desc')
+      .orderBy('file_tracking.expected_at', sortOrder)
       .limit(limit)
       .offset(offset);
 
@@ -666,6 +696,7 @@ export class FileTrackingRepository extends BaseRepository {
     previous_to: Date;
     department_codes?: string[];
     direction?: 'inward' | 'outward' | 'bidirectional';
+    watcher_id?: number;
   }): Promise<PeriodComparison> {
     // Get stats for current period
     const current = await this.getAggregatedStats({
@@ -673,6 +704,7 @@ export class FileTrackingRepository extends BaseRepository {
       expected_to: options.current_to,
       department_codes: options.department_codes,
       direction: options.direction,
+      watcher_id: options.watcher_id,
     });
 
     // Get stats for previous period
@@ -681,6 +713,7 @@ export class FileTrackingRepository extends BaseRepository {
       expected_to: options.previous_to,
       department_codes: options.department_codes,
       direction: options.direction,
+      watcher_id: options.watcher_id,
     });
 
     // Calculate percentage changes

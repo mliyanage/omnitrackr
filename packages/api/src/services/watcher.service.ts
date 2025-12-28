@@ -2,6 +2,7 @@ import {
   WatcherRepository,
   SourceConnectionRepository,
   ScheduleRepository,
+  FileTrackingRepository,
   Watcher,
   WatcherWithRelations,
   CreateWatcherRequest,
@@ -13,6 +14,7 @@ import {
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { db } from '../config/database';
 import { NotFoundError, ValidationError } from '../utils/errors';
+import { PollingService } from '@omnitrackr/worker';
 
 /**
  * Watcher Service
@@ -22,11 +24,13 @@ export class WatcherService {
   private watcherRepo: WatcherRepository;
   private connectionRepo: SourceConnectionRepository;
   private scheduleRepo: ScheduleRepository;
+  private fileTrackingRepo: FileTrackingRepository;
 
   constructor() {
     this.watcherRepo = new WatcherRepository(db);
     this.connectionRepo = new SourceConnectionRepository(db);
     this.scheduleRepo = new ScheduleRepository(db);
+    this.fileTrackingRepo = new FileTrackingRepository(db);
   }
 
   /**
@@ -139,6 +143,32 @@ export class WatcherService {
   }
 
   /**
+   * Check if update includes critical fields requiring file_tracking regeneration
+   */
+  private hasCriticalChanges(
+    current: Watcher,
+    update: UpdateWatcherRequest
+  ): boolean {
+    const criticalFields = [
+      'schedule_id',
+      'file_name_pattern',
+      'file_path_pattern',
+      'match_rule',
+      'sla_enabled',
+      'sla_threshold_minutes',
+    ] as const;
+
+    return criticalFields.some(field => {
+      // Check if field is in update AND different from current
+      if (update[field] !== undefined && update[field] !== current[field]) {
+        console.log(`   Critical change detected: ${field} changed from ${current[field]} to ${update[field]}`);
+        return true;
+      }
+      return false;
+    });
+  }
+
+  /**
    * Update watcher
    */
   async update(
@@ -146,7 +176,8 @@ export class WatcherService {
     request: UpdateWatcherRequest,
     updatedBy?: string
   ): Promise<Watcher> {
-    await this.getById(id);
+    // Get current watcher state BEFORE update
+    const currentWatcher = await this.getById(id);
 
     // Validate connection if being changed
     if (request.source_connection_id) {
@@ -164,10 +195,30 @@ export class WatcherService {
       }
     }
 
-    return this.watcherRepo.update<Watcher>(id, {
+    // Detect critical field changes
+    const requiresRegeneration = this.hasCriticalChanges(currentWatcher, request);
+
+    // Update watcher
+    const updatedWatcher = await this.watcherRepo.update<Watcher>(id, {
       ...request,
       updated_by: updatedBy,
     });
+
+    // If critical fields changed, delete future pending records
+    if (requiresRegeneration) {
+      try {
+        const deletedCount = await this.fileTrackingRepo.deleteFuturePendingByWatcher(id);
+        console.log(
+          `ℹ️  Watcher ${id} config changed. Deleted ${deletedCount} future file_tracking records. ` +
+          `Next SLA Monitor cycle will regenerate them.`
+        );
+      } catch (error) {
+        console.error(`⚠️  Failed to delete future file_tracking records for watcher ${id}:`, error);
+        // Don't fail the update - SLA Monitor will handle duplicates
+      }
+    }
+
+    return updatedWatcher;
   }
 
   /**
@@ -338,5 +389,38 @@ export class WatcherService {
       default:
         return false;
     }
+  }
+
+  /**
+   * Trigger a manual poll for a watcher
+   * This allows on-demand file checking outside of scheduled intervals
+   */
+  async triggerPoll(watcherId: number): Promise<{
+    success: boolean;
+    message: string;
+    filesDetected?: number;
+    filesNew?: number;
+  }> {
+    // Get watcher by ID
+    const watcher = await this.getById(watcherId);
+
+    // Validate watcher is active
+    if (watcher.status !== 'active') {
+      throw new ValidationError('Cannot poll inactive watcher');
+    }
+
+    // Instantiate PollingService and trigger poll
+    const pollingService = new PollingService(db);
+    const result = await pollingService.pollWatcher(watcher, 'manual');
+
+    // Return result
+    return {
+      success: result.success,
+      message: result.success
+        ? `Poll completed. Found ${result.filesDetected} files (${result.filesNew} new)`
+        : `Poll failed: ${result.error}`,
+      filesDetected: result.filesDetected,
+      filesNew: result.filesNew,
+    };
   }
 }

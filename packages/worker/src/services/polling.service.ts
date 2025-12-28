@@ -136,8 +136,9 @@ export class PollingService {
         filesNew: result.filesNew,
       });
 
-      // Match detected files to SLA file_tracking records if SLA is enabled
-      if (watcher.sla_enabled && result.detectedFiles && result.detectedFiles.length > 0) {
+      // Match detected files to file_tracking records (for all watchers)
+      // Tracking records are created for both SLA and non-SLA watchers
+      if (result.detectedFiles && result.detectedFiles.length > 0) {
         await this.matchFilesToSLATracking(watcher, result.detectedFiles, pollStartedAt);
       }
 
@@ -497,8 +498,9 @@ export class PollingService {
   }
 
   /**
-   * Match detected files to SLA file_tracking records
-   * This links files found during polling to expected file records created by SLA monitor
+   * Match detected files to file_tracking records
+   * This links files found during polling to expected file records
+   * Works for both SLA-enabled and non-SLA watchers
    * Only processes new files (not previously seen) to avoid duplicate matching
    */
   private async matchFilesToSLATracking(
@@ -510,34 +512,34 @@ export class PollingService {
     const newFiles = detectedFiles.filter(f => f.isNew);
 
     if (newFiles.length === 0) {
-      console.log(`   ℹ️  No new files to match to SLA tracking`);
+      console.log(`   ℹ️  No new files to match to file tracking`);
       return;
     }
 
-    console.log(`   🔗 Matching ${newFiles.length} new files to SLA tracking records...`);
+    console.log(`   🔗 Matching ${newFiles.length} new files to file tracking records...`);
 
     let matchedCount = 0;
     for (const file of newFiles) {
       try {
-        // Use file's actual upload/modified time from S3 for accurate SLA tracking
+        // Use file's actual upload/modified time for accurate tracking
         await this.slaMonitorService.matchDetectedFile(
           watcher.id,
           file.fileName,
           file.filePath,
           file.fileSize,
-          file.lastModified // Use S3 LastModified time, not poll detection time
+          file.lastModified // Use actual file modified time, not poll detection time
         );
         matchedCount++;
       } catch (error) {
         console.error(
-          `   ⚠️  Failed to match file ${file.fileName} to SLA tracking:`,
+          `   ⚠️  Failed to match file ${file.fileName} to file tracking:`,
           error instanceof Error ? error.message : error
         );
       }
     }
 
     if (matchedCount > 0) {
-      console.log(`   ✅ Matched ${matchedCount}/${newFiles.length} files to SLA tracking records`);
+      console.log(`   ✅ Matched ${matchedCount}/${newFiles.length} files to file tracking records`);
     }
   }
 

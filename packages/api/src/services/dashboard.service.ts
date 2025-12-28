@@ -21,6 +21,7 @@ export class DashboardService {
     to_date: string;
     department_codes?: string[];
     direction?: 'inward' | 'outward' | 'bidirectional';
+    watcher_id?: number;
   }): Promise<DashboardSummary> {
     const fromDate = new Date(options.from_date);
     const toDate = new Date(options.to_date);
@@ -35,6 +36,7 @@ export class DashboardService {
       to_date: toDate,
       department_codes: options.department_codes,
       direction: options.direction,
+      watcher_id: options.watcher_id,
     };
 
     // Fetch all data in parallel
@@ -44,6 +46,7 @@ export class DashboardService {
         expected_to: toDate,
         department_codes: options.department_codes,
         direction: options.direction,
+        watcher_id: options.watcher_id,
       }),
       this.fileTrackingRepo.getPeriodComparison({
         current_from: fromDate,
@@ -52,6 +55,7 @@ export class DashboardService {
         previous_to: previousTo,
         department_codes: options.department_codes,
         direction: options.direction,
+        watcher_id: options.watcher_id,
       }),
       this.fileTrackingRepo.getDirectionCounts(queryOptions),
       this.fileTrackingRepo.getTopWatchersByPeriod({

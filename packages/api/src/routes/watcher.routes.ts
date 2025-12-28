@@ -73,4 +73,11 @@ router.delete('/:id', watcherController.delete);
  */
 router.patch('/:id/status', watcherController.updateStatus);
 
+/**
+ * @route   POST /api/watchers/:id/poll
+ * @desc    Trigger manual poll for a watcher
+ * @access  Private
+ */
+router.post('/:id/poll', watcherController.triggerPoll);
+
 export default router;

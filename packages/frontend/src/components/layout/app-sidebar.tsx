@@ -2,7 +2,6 @@ import * as React from 'react';
 import {
   LayoutDashboard,
   Database,
-  FileInput,
   FileSearch,
   Bell,
   Settings,
@@ -11,7 +10,6 @@ import {
   Calendar,
   Building2,
   Cable,
-  BarChart3,
 } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -51,11 +49,6 @@ const navItems = [
     icon: Cable,
   },
   {
-    title: 'Inward Files',
-    href: '/inward-files',
-    icon: FileInput,
-  },
-  {
     title: 'Watchers',
     href: '/watchers',
     icon: Eye,
@@ -64,11 +57,6 @@ const navItems = [
     title: 'File Tracking',
     href: '/file-tracking',
     icon: FileSearch,
-  },
-  {
-    title: 'Analytics',
-    href: '/analytics',
-    icon: BarChart3,
   },
   {
     title: 'Notifications',

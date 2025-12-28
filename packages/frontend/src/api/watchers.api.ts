@@ -94,6 +94,23 @@ export const triggerWatcherPoll = async (id: number): Promise<{
   return response.data.data;
 };
 
+/**
+ * Update watcher status (active/paused/disabled/error)
+ */
+export const updateWatcherStatus = async (
+  id: number,
+  status: 'active' | 'paused' | 'disabled' | 'error'
+): Promise<Watcher> => {
+  const response = await apiClient.patch<ApiResponse<Watcher>>(
+    `/api/watchers/${id}/status`,
+    { status }
+  );
+  if (!response.data.data) {
+    throw new Error('Failed to update watcher status');
+  }
+  return response.data.data;
+};
+
 // ============================================================================
 // Watcher Logs
 // ============================================================================

@@ -34,7 +34,7 @@ import { cn } from '@/lib/utils';
 
 type StatusFilter = 'all' | 'pending' | 'arrived' | 'late' | 'missing';
 type AlertFilter = 'all' | 'true' | 'false';
-type DateRangeFilter = '24h' | '7d' | '30d' | 'custom';
+type DateRangeFilter = '24h' | 'next24h' | '7d' | '30d' | 'custom';
 type DirectionFilter = 'all' | 'inward' | 'outward' | 'bidirectional';
 
 export default function FileTrackingPage() {
@@ -69,10 +69,16 @@ export default function FileTrackingPage() {
 
     const now = new Date();
     let from: Date;
+    let to: Date = now;
 
     switch (dateRange) {
       case '24h':
         from = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+        break;
+      case 'next24h':
+        // Next 24 hours: from now to 24 hours ahead
+        from = now;
+        to = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         break;
       case '7d':
         from = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
@@ -90,7 +96,7 @@ export default function FileTrackingPage() {
 
     return {
       from: from.toISOString(),
-      to: now.toISOString(),
+      to: to.toISOString(),
     };
   }, [dateRange, customDateRange, lastRefreshTime]);
 
@@ -383,6 +389,7 @@ export default function FileTrackingPage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="24h">Last 24 Hours</SelectItem>
+            <SelectItem value="next24h">Next 24 Hours</SelectItem>
             <SelectItem value="7d">Last 7 Days</SelectItem>
             <SelectItem value="30d">Last 30 Days</SelectItem>
             <SelectItem value="custom">Custom Range</SelectItem>

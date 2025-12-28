@@ -5,6 +5,7 @@ export interface DashboardQueryParams {
   to_date: string;
   department_codes?: string[];
   direction?: 'inward' | 'outward' | 'bidirectional';
+  watcher_id?: number;
 }
 
 export interface TimeSeriesDataPoint {
@@ -77,6 +78,10 @@ export const getDashboardSummary = async (
 
   if (params.direction) {
     queryParams.append('direction', params.direction);
+  }
+
+  if (params.watcher_id) {
+    queryParams.append('watcher_id', params.watcher_id.toString());
   }
 
   const response = await apiClient.get(

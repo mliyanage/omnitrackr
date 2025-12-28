@@ -33,14 +33,16 @@ export function getConnectionStatusBadge(
 
 /**
  * Get badge for watcher status
- * Maps: active, inactive, error
+ * Maps: active, paused, disabled, error
  */
 export function getWatcherStatusBadge(status: string | undefined): BadgeConfig {
   switch (status) {
     case 'active':
       return { variant: 'success', label: 'Active' };
-    case 'inactive':
-      return { variant: 'secondary', label: 'Inactive' };
+    case 'paused':
+      return { variant: 'warning', label: 'Paused' };
+    case 'disabled':
+      return { variant: 'secondary', label: 'Disabled' };
     case 'error':
       return { variant: 'destructive', label: 'Error' };
     default:

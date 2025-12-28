@@ -282,9 +282,21 @@ export class SLAMonitorService {
       }
     }
 
-    // Check if file arrived on time or late based on SLA deadline
-    const isLate = fileUploadedAt > new Date(closestRecord.sla_deadline);
-    const status: TrackingStatus = isLate ? 'late' : 'arrived';
+    // Check if file arrived on time or late
+    // For SLA watchers: compare against sla_deadline
+    // For non-SLA watchers: compare against expected_at
+    let isLate = false;
+    let status: TrackingStatus;
+
+    if (closestRecord.sla_deadline) {
+      // SLA-enabled watcher: check against SLA deadline
+      isLate = fileUploadedAt > new Date(closestRecord.sla_deadline);
+      status = isLate ? 'late' : 'arrived';
+    } else {
+      // Non-SLA watcher: check against expected time
+      isLate = fileUploadedAt > new Date(closestRecord.expected_at);
+      status = isLate ? 'late' : 'arrived';
+    }
 
     // Update tracking record
     await this.fileTrackingRepo.markAsArrived(closestRecord.id, {
@@ -295,11 +307,16 @@ export class SLAMonitorService {
       tracking_status: status,
     });
 
-    // If late, trigger alert
-    if (isLate) {
+    // If late and SLA-enabled, trigger alert
+    if (isLate && closestRecord.sla_deadline) {
       await this.fileTrackingRepo.triggerAlert(closestRecord.id, 'sla_breached');
       console.log(
         `   ⚠️  Late file: ${fileName} (expected by ${closestRecord.sla_deadline}, uploaded at ${fileUploadedAt.toISOString()})`
+      );
+    } else if (isLate) {
+      // Non-SLA watcher, late but no alert
+      console.log(
+        `   ⚠️  File arrived late: ${fileName} (expected at ${closestRecord.expected_at}, uploaded at ${fileUploadedAt.toISOString()}) - No alert (non-SLA)`
       );
     } else {
       const arrivedEarly = fileUploadedAt < new Date(closestRecord.expected_at);
