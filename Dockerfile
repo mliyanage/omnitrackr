@@ -8,6 +8,7 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 COPY packages/shared/package*.json ./packages/shared/
+COPY packages/worker/package*.json ./packages/worker/
 COPY packages/api/package*.json ./packages/api/
 
 # Install dependencies (including dev dependencies for building)
@@ -25,10 +26,15 @@ COPY package*.json ./
 COPY tsconfig.json ./
 COPY turbo.json ./
 COPY packages/shared ./packages/shared
+COPY packages/worker ./packages/worker
 COPY packages/api ./packages/api
 
-# Build shared package first (API depends on it)
+# Build shared package first (API and worker depend on it)
 WORKDIR /app/packages/shared
+RUN npm run build
+
+# Build worker package (API depends on it)
+WORKDIR /app/packages/worker
 RUN npm run build
 
 # Build API package
@@ -42,6 +48,7 @@ WORKDIR /app
 # Copy package files for production install
 COPY package*.json ./
 COPY packages/shared/package*.json ./packages/shared/
+COPY packages/worker/package*.json ./packages/worker/
 COPY packages/api/package*.json ./packages/api/
 
 # Install only production dependencies (npm workspaces installs all in root node_modules)
@@ -50,6 +57,8 @@ RUN npm ci --omit=dev
 # Copy built artifacts from builder
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist
 COPY --from=builder /app/packages/shared/package.json ./packages/shared/
+COPY --from=builder /app/packages/worker/dist ./packages/worker/dist
+COPY --from=builder /app/packages/worker/package.json ./packages/worker/
 COPY --from=builder /app/packages/api/dist ./packages/api/dist
 COPY --from=builder /app/packages/api/package.json ./packages/api/
 
