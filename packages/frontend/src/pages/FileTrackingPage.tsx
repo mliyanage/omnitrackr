@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { WatcherCombobox } from '@/components/ui/watcher-combobox';
 import { Card } from '@/components/ui/card';
 import {
   Pagination,
@@ -343,19 +344,11 @@ export default function FileTrackingPage() {
         </Select>
 
         {/* Watcher Filter */}
-        <Select value={watcherFilter} onValueChange={setWatcherFilter}>
-          <SelectTrigger className="w-full md:w-[200px]">
-            <SelectValue placeholder="All Watchers" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Watchers</SelectItem>
-            {watchers.map((watcher) => (
-              <SelectItem key={watcher.id} value={watcher.id.toString()}>
-                {watcher.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <WatcherCombobox
+          watchers={watchers}
+          value={watcherFilter}
+          onValueChange={setWatcherFilter}
+        />
 
         {/* Alert Filter */}
         <Select value={alertFilter} onValueChange={(v) => setAlertFilter(v as AlertFilter)}>
