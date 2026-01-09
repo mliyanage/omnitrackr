@@ -31,6 +31,41 @@ router.get('/health', (req, res) => {
 });
 
 /**
+ * Test Mailjet connectivity (public - for debugging)
+ */
+router.get('/test-mailjet', async (req, res) => {
+  try {
+    const Mailjet = require('node-mailjet');
+    const mailjet = new Mailjet({
+      apiKey: process.env.MJ_APIKEY_PUBLIC || '',
+      apiSecret: process.env.MJ_APIKEY_PRIVATE || '',
+    });
+
+    // Simple API test - get account info
+    const request = mailjet.get('sender').request();
+    const result = await request;
+
+    res.status(200).json({
+      success: true,
+      message: 'Mailjet connection successful',
+      status: result.response.status,
+      hasApiKey: !!process.env.MJ_APIKEY_PUBLIC,
+      hasApiSecret: !!process.env.MJ_APIKEY_PRIVATE,
+    });
+  } catch (error: any) {
+    console.error('Mailjet test error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Mailjet connection failed',
+      error: error.message || 'Unknown error',
+      errorCode: error.code,
+      hasApiKey: !!process.env.MJ_APIKEY_PUBLIC,
+      hasApiSecret: !!process.env.MJ_APIKEY_PRIVATE,
+    });
+  }
+});
+
+/**
  * API Routes
  */
 

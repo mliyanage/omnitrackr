@@ -237,7 +237,7 @@ export class EmailService {
   }
 
   /**
-   * Send generic email using Mailjet REST API
+   * Send generic email using Mailjet REST API with retry logic
    */
   private async sendEmail(options: {
     to: string;
@@ -245,46 +245,77 @@ export class EmailService {
     html: string;
     text?: string;
   }): Promise<void> {
-    try {
-      const request = this.mailjet
-        .post('send', { version: 'v3.1' })
-        .request({
-          Messages: [
-            {
-              From: {
-                Email: this.fromEmail,
-                Name: this.fromName,
-              },
-              To: [
-                {
-                  Email: options.to,
+    const maxRetries = 3;
+    const baseDelay = 1000; // 1 second
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Email send attempt ${attempt}/${maxRetries} to ${options.to}`);
+
+        const request = this.mailjet
+          .post('send', { version: 'v3.1' })
+          .request({
+            Messages: [
+              {
+                From: {
+                  Email: this.fromEmail,
+                  Name: this.fromName,
                 },
-              ],
-              Subject: options.subject,
-              HTMLPart: options.html,
-              TextPart: options.text || this.stripHtml(options.html),
-            },
-          ],
+                To: [
+                  {
+                    Email: options.to,
+                  },
+                ],
+                Subject: options.subject,
+                HTMLPart: options.html,
+                TextPart: options.text || this.stripHtml(options.html),
+              },
+            ],
+          });
+
+        const result = await request;
+
+        if (result.response.status !== 200) {
+          console.error('Mailjet API error:', result.body);
+          throw new Error(`Mailjet API returned status ${result.response.status}`);
+        }
+
+        console.log(`Email sent successfully via Mailjet API (attempt ${attempt})`);
+        return; // Success - exit the function
+      } catch (error: any) {
+        const isLastAttempt = attempt === maxRetries;
+        const isRetryable =
+          error.code === 'ECONNRESET' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ENOTFOUND' ||
+          error.code === 'EAI_AGAIN' ||
+          (error.statusCode >= 500 && error.statusCode < 600);
+
+        console.error(`Failed to send email (attempt ${attempt}/${maxRetries}):`, {
+          code: error.code,
+          message: error.message,
+          statusCode: error.statusCode,
+          isRetryable,
         });
 
-      const result = await request;
+        // Log detailed error information
+        if (error.statusCode) {
+          console.error('Mailjet error status:', error.statusCode);
+          console.error('Mailjet error response:', error.response?.text || error.message);
+        }
 
-      if (result.response.status !== 200) {
-        console.error('Mailjet API error:', result.body);
-        throw new Error(`Mailjet API returned status ${result.response.status}`);
+        // If this is the last attempt or error is not retryable, throw
+        if (isLastAttempt || !isRetryable) {
+          throw new Error(
+            `Failed to send email: Unsuccessful: Error Code: "${error.code}" Message: "${error.message}"`
+          );
+        }
+
+        // Wait before retrying (exponential backoff)
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
       }
-
-      console.log('Email sent successfully via Mailjet API');
-    } catch (error: any) {
-      console.error('Failed to send email via Mailjet:', error);
-
-      // Log detailed error information
-      if (error.statusCode) {
-        console.error('Mailjet error status:', error.statusCode);
-        console.error('Mailjet error response:', error.response?.text || error.message);
-      }
-
-      throw new Error(`Failed to send email: ${error.message || 'Unknown error'}`);
     }
   }
 
