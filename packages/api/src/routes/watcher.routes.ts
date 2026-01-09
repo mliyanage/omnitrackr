@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { watcherController } from '../controllers/watcher.controller';
+import { requireEditor } from '../middleware/authorization.middleware';
 
 const router = Router();
 
@@ -48,36 +49,36 @@ router.get('/:id', watcherController.getById);
 /**
  * @route   POST /api/watchers
  * @desc    Create a new watcher
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.post('/', watcherController.create);
+router.post('/', requireEditor(), watcherController.create);
 
 /**
  * @route   PATCH /api/watchers/:id
  * @desc    Update a watcher
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.patch('/:id', watcherController.update);
+router.patch('/:id', requireEditor(), watcherController.update);
 
 /**
  * @route   DELETE /api/watchers/:id
  * @desc    Delete a watcher (soft delete)
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.delete('/:id', watcherController.delete);
+router.delete('/:id', requireEditor(), watcherController.delete);
 
 /**
  * @route   PATCH /api/watchers/:id/status
  * @desc    Update watcher status
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.patch('/:id/status', watcherController.updateStatus);
+router.patch('/:id/status', requireEditor(), watcherController.updateStatus);
 
 /**
  * @route   POST /api/watchers/:id/poll
  * @desc    Trigger manual poll for a watcher
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.post('/:id/poll', watcherController.triggerPoll);
+router.post('/:id/poll', requireEditor(), watcherController.triggerPoll);
 
 export default router;

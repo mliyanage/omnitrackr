@@ -42,9 +42,11 @@ import { WatcherViewSheet } from '@/components/watchers/WatcherViewSheet';
 import { getWatchers, deleteWatcher, triggerWatcherPoll, updateWatcherStatus } from '@/api/watchers.api';
 import { listDepartments } from '@/api/departments.api';
 import { showSuccess, showError } from '@/lib/toast';
+import { useAuthStore } from '@/stores/authStore';
 import type { Watcher } from '@/types';
 
 export default function WatchersPage() {
+  const isViewer = useAuthStore((state) => state.isViewer());
   const [selectedWatcher, setSelectedWatcher] = useState<Watcher | undefined>();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
@@ -191,10 +193,12 @@ export default function WatchersPage() {
             Monitor and track file arrivals across your data sources
           </p>
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Watcher
-        </Button>
+        {!isViewer && (
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Watcher
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -330,42 +334,50 @@ export default function WatchersPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleTriggerPoll(watcher.id)}>
-                          <Play className="mr-2 h-4 w-4" />
-                          Trigger Poll
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
+                        {!isViewer && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleTriggerPoll(watcher.id)}>
+                              <Play className="mr-2 h-4 w-4" />
+                              Trigger Poll
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                          </>
+                        )}
                         <DropdownMenuItem onClick={() => handleView(watcher)}>
                           <Eye className="mr-2 h-4 w-4" />
                           View
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleEdit(watcher)}>
-                          <Pencil className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        {watcher.status === 'active' ? (
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(watcher.id, 'disabled')}
-                          >
-                            <Pause className="mr-2 h-4 w-4" />
-                            Pause
-                          </DropdownMenuItem>
-                        ) : (
-                          <DropdownMenuItem
-                            onClick={() => handleStatusChange(watcher.id, 'active')}
-                          >
-                            <Play className="mr-2 h-4 w-4" />
-                            Resume
-                          </DropdownMenuItem>
+                        {!isViewer && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleEdit(watcher)}>
+                              <Pencil className="mr-2 h-4 w-4" />
+                              Edit
+                            </DropdownMenuItem>
+                            {watcher.status === 'active' ? (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(watcher.id, 'disabled')}
+                              >
+                                <Pause className="mr-2 h-4 w-4" />
+                                Pause
+                              </DropdownMenuItem>
+                            ) : (
+                              <DropdownMenuItem
+                                onClick={() => handleStatusChange(watcher.id, 'active')}
+                              >
+                                <Play className="mr-2 h-4 w-4" />
+                                Resume
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => handleDeleteClick(watcher.id, watcher.name)}
+                              className="text-destructive"
+                            >
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </>
                         )}
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem
-                          onClick={() => handleDeleteClick(watcher.id, watcher.name)}
-                          className="text-destructive"
-                        >
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>

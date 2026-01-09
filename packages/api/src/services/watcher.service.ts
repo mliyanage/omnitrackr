@@ -184,6 +184,11 @@ export class WatcherService {
    * If a soft-deleted watcher with the same name exists, restore and update it
    */
   async create(req: AuthenticatedRequest, request: CreateWatcherRequest, createdBy?: string): Promise<Watcher> {
+    // Viewers cannot create watchers
+    if (req.user.role === 'viewer') {
+      throw new ForbiddenError('Viewers do not have permission to create watchers');
+    }
+
     // Validate department access
     if (request.department_code) {
       const department = await db('departments')
