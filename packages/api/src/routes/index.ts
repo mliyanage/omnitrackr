@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import Mailjet from 'node-mailjet';
 import authRoutes from './auth.routes';
 import fileSourceRoutes from './fileSource.routes';
 import sourceConnectionRoutes from './sourceConnection.routes';
@@ -35,7 +36,6 @@ router.get('/health', (req, res) => {
  */
 router.get('/test-mailjet', async (req, res) => {
   try {
-    const Mailjet = require('node-mailjet');
     const mailjet = new Mailjet({
       apiKey: process.env.MJ_APIKEY_PUBLIC || '',
       apiSecret: process.env.MJ_APIKEY_PRIVATE || '',
@@ -43,7 +43,7 @@ router.get('/test-mailjet', async (req, res) => {
 
     // Simple API test - get account info
     const request = mailjet.get('sender').request();
-    const result = await request;
+    const result: { response: { status: number } } = await request;
 
     res.status(200).json({
       success: true,
@@ -52,13 +52,14 @@ router.get('/test-mailjet', async (req, res) => {
       hasApiKey: !!process.env.MJ_APIKEY_PUBLIC,
       hasApiSecret: !!process.env.MJ_APIKEY_PRIVATE,
     });
-  } catch (error: any) {
+  } catch (error) {
+    const err = error as { message?: string; code?: string };
     console.error('Mailjet test error:', error);
     res.status(500).json({
       success: false,
       message: 'Mailjet connection failed',
-      error: error.message || 'Unknown error',
-      errorCode: error.code,
+      error: err.message || 'Unknown error',
+      errorCode: err.code,
       hasApiKey: !!process.env.MJ_APIKEY_PUBLIC,
       hasApiSecret: !!process.env.MJ_APIKEY_PRIVATE,
     });
