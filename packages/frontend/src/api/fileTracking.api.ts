@@ -70,7 +70,7 @@ export const getFileTracking = async (
 }> => {
   const response = await apiClient.get<
     PaginatedApiResponse<FileTracking[]>
-  >('/api/file-tracking', { params });
+  >('/file-tracking', { params });
 
   return {
     data: response.data.data || [],
@@ -103,7 +103,7 @@ export const getSLASummary = async (params?: {
   direction?: 'inward' | 'outward' | 'bidirectional';
 }): Promise<SLADashboardSummary> => {
   const response = await apiClient.get<ApiResponse<SLADashboardSummary>>(
-    '/api/file-tracking/summary',
+    '/file-tracking/summary',
     { params }
   );
   if (!response.data.data) {

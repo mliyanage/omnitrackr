@@ -20,7 +20,7 @@ export const getWatchers = async (params?: {
   department_id?: number;
   connection_id?: number;
 }): Promise<Watcher[]> => {
-  const response = await apiClient.get<ApiResponse<Watcher[]>>('/api/watchers', {
+  const response = await apiClient.get<ApiResponse<Watcher[]>>('/watchers', {
     params,
   });
   return response.data.data || [];
@@ -44,7 +44,7 @@ export const createWatcher = async (
   data: CreateWatcherRequest
 ): Promise<Watcher> => {
   const response = await apiClient.post<ApiResponse<Watcher>>(
-    '/api/watchers',
+    '/watchers',
     data
   );
   if (!response.data.data) {
@@ -171,7 +171,7 @@ export const getMissingFileAlerts = async (params?: {
   to_date?: string;
 }): Promise<FileTracking[]> => {
   const response = await apiClient.get<ApiResponse<FileTracking[]>>(
-    '/api/file-tracking/alerts',
+    '/file-tracking/alerts',
     { params }
   );
   return response.data.data || [];
@@ -186,7 +186,7 @@ export const getMissingFileAlerts = async (params?: {
  */
 export const getWatcherSummary = async (): Promise<WatcherSummary> => {
   const response = await apiClient.get<ApiResponse<WatcherSummary>>(
-    '/api/watchers/summary'
+    '/watchers/summary'
   );
   if (!response.data.data) {
     throw new Error('Failed to get watcher summary');
@@ -202,7 +202,7 @@ export const getSLASummary = async (params?: {
   to_date?: string;
 }): Promise<SLASummary> => {
   const response = await apiClient.get<ApiResponse<SLASummary>>(
-    '/api/file-tracking/sla-summary',
+    '/file-tracking/sla-summary',
     { params }
   );
   if (!response.data.data) {

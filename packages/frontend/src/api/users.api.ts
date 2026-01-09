@@ -17,7 +17,7 @@ import type {
  * Only accessible by owners and super admins
  */
 export const listUsers = async (): Promise<ApiResponse<UserWithDepartments[]>> => {
-  const response = await apiClient.get<ApiResponse<UserWithDepartments[]>>('/api/users');
+  const response = await apiClient.get<ApiResponse<UserWithDepartments[]>>('/users');
   return response.data;
 };
 
@@ -36,7 +36,7 @@ export const getUser = async (id: number): Promise<ApiResponse<UserWithDepartmen
 export const inviteUser = async (
   data: InviteUserRequest
 ): Promise<ApiResponse<InviteUserResponse>> => {
-  const response = await apiClient.post<ApiResponse<InviteUserResponse>>('/api/users/invite', data);
+  const response = await apiClient.post<ApiResponse<InviteUserResponse>>('/users/invite', data);
   return response.data;
 };
 
@@ -99,7 +99,7 @@ export const acceptInvitation = async (
   data: AcceptInvitationRequest
 ): Promise<ApiResponse<AcceptInvitationResponse>> => {
   const response = await apiClient.post<ApiResponse<AcceptInvitationResponse>>(
-    '/api/users/accept-invitation',
+    '/users/accept-invitation',
     data
   );
   return response.data;

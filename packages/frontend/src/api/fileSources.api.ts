@@ -12,7 +12,7 @@ import type {
  * Get all file sources
  */
 export const getFileSources = async (): Promise<FileSource[]> => {
-  const response = await apiClient.get<ApiResponse<FileSource[]>>('/api/file-sources');
+  const response = await apiClient.get<ApiResponse<FileSource[]>>('/file-sources');
   return response.data.data || [];
 };
 
@@ -34,7 +34,7 @@ export const createFileSource = async (
   data: CreateFileSourceRequest
 ): Promise<FileSource> => {
   const response = await apiClient.post<ApiResponse<FileSource>>(
-    '/api/file-sources',
+    '/file-sources',
     data
   );
   if (!response.data.data) {
@@ -87,7 +87,7 @@ export const testConnection = async (
   data: TestConnectionRequest
 ): Promise<TestConnectionResponse> => {
   const response = await apiClient.post<ApiResponse<TestConnectionResponse>>(
-    '/api/file-sources/s3/test-connection',
+    '/file-sources/s3/test-connection',
     data
   );
   if (!response.data.data) {

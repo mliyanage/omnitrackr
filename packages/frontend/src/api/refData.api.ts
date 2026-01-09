@@ -9,7 +9,7 @@ import type {
  * Get all reference data
  */
 export const getAllRefData = async (): Promise<RefData[]> => {
-  const response = await apiClient.get<ApiResponse<RefData[]>>('/api/ref-data');
+  const response = await apiClient.get<ApiResponse<RefData[]>>('/ref-data');
   return response.data.data || [];
 };
 
@@ -17,7 +17,7 @@ export const getAllRefData = async (): Promise<RefData[]> => {
  * Get departments
  */
 export const getDepartments = async (): Promise<RefData[]> => {
-  const response = await apiClient.get<ApiResponse<RefData[]>>('/api/ref-data/departments');
+  const response = await apiClient.get<ApiResponse<RefData[]>>('/ref-data/departments');
   return response.data.data || [];
 };
 
@@ -25,7 +25,7 @@ export const getDepartments = async (): Promise<RefData[]> => {
  * Get timezones
  */
 export const getTimezones = async (): Promise<RefData[]> => {
-  const response = await apiClient.get<ApiResponse<RefData[]>>('/api/ref-data/timezones');
+  const response = await apiClient.get<ApiResponse<RefData[]>>('/ref-data/timezones');
   return response.data.data || [];
 };
 
@@ -34,7 +34,7 @@ export const getTimezones = async (): Promise<RefData[]> => {
  */
 export const createRefData = async (data: CreateRefDataRequest): Promise<RefData> => {
   const response = await apiClient.post<ApiResponse<RefData>>(
-    '/api/ref-data',
+    '/ref-data',
     data
   );
   if (!response.data.data) {

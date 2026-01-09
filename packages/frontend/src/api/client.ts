@@ -57,7 +57,7 @@ const refreshAccessToken = async (): Promise<string> => {
     });
 
     const response = await refreshClient.post<ApiResponse<RefreshTokenResponse>>(
-      '/api/auth/refresh',
+      '/auth/refresh',
       { refreshToken }
     );
 

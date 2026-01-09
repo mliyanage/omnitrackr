@@ -85,7 +85,7 @@ export const getDashboardSummary = async (
   }
 
   const response = await apiClient.get(
-    `/api/dashboard/summary?${queryParams.toString()}`
+    `/dashboard/summary?${queryParams.toString()}`
   );
 
   return response.data.data;

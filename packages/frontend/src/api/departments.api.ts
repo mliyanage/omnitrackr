@@ -33,7 +33,7 @@ export interface UpdateDepartmentRequest {
  * Owners see all departments, editors/viewers see only assigned departments
  */
 export const listDepartments = async (): Promise<ApiResponse<Department[]>> => {
-  const response = await apiClient.get<ApiResponse<Department[]>>('/api/departments');
+  const response = await apiClient.get<ApiResponse<Department[]>>('/departments');
   return response.data;
 };
 
@@ -52,7 +52,7 @@ export const getDepartment = async (id: number): Promise<ApiResponse<Department>
 export const createDepartment = async (
   data: CreateDepartmentRequest
 ): Promise<ApiResponse<Department>> => {
-  const response = await apiClient.post<ApiResponse<Department>>('/api/departments', data);
+  const response = await apiClient.post<ApiResponse<Department>>('/departments', data);
   return response.data;
 };
 

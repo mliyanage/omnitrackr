@@ -13,7 +13,7 @@ import type {
  * Get all source connections
  */
 export const getConnections = async (): Promise<SourceConnection[]> => {
-  const response = await apiClient.get<ApiResponse<SourceConnection[]>>('/api/source-connections');
+  const response = await apiClient.get<ApiResponse<SourceConnection[]>>('/source-connections');
   return response.data.data || [];
 };
 
@@ -35,7 +35,7 @@ export const createConnection = async (
   data: CreateConnectionRequest
 ): Promise<SourceConnection> => {
   const response = await apiClient.post<ApiResponse<SourceConnection>>(
-    '/api/source-connections',
+    '/source-connections',
     data
   );
   if (!response.data.data) {
@@ -75,7 +75,7 @@ export const testConnection = async (
   data: TestConnectionRequest
 ): Promise<TestConnectionResponse> => {
   const response = await apiClient.post<ApiResponse<TestConnectionResponse>>(
-    '/api/source-connections/test',
+    '/source-connections/test',
     data
   );
   if (!response.data.data) {

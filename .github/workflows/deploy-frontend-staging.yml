@@ -38,7 +38,7 @@ jobs:
           npm run build:staging
         env:
           NODE_ENV: production
-          VITE_API_URL: https://staging.omnitrackr.dev
+          VITE_API_URL: https://staging.omnitrackr.dev/api
 
       - name: Authenticate to Google Cloud
         uses: google-github-actions/auth@v2

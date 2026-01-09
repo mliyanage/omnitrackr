@@ -12,7 +12,7 @@ import type {
  * Get all schedules
  */
 export const getSchedules = async (): Promise<Schedule[]> => {
-  const response = await apiClient.get<ApiResponse<Schedule[]>>('/api/schedules');
+  const response = await apiClient.get<ApiResponse<Schedule[]>>('/schedules');
   return response.data.data || [];
 };
 
@@ -34,7 +34,7 @@ export const createSchedule = async (
   data: CreateScheduleRequest
 ): Promise<Schedule> => {
   const response = await apiClient.post<ApiResponse<Schedule>>(
-    '/api/schedules',
+    '/schedules',
     data
   );
   if (!response.data.data) {
