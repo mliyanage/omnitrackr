@@ -207,4 +207,7 @@ async function main() {
   }
 }
 
-main();
+// Only run main() if this file is executed directly (not imported as a module)
+if (require.main === module) {
+  main();
+}

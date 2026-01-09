@@ -13,12 +13,14 @@ import {
 } from '@omnitrackr/shared';
 import { S3Client, ListObjectsV2Command } from '@aws-sdk/client-s3';
 import { db } from '../config/database';
-import { NotFoundError, ValidationError } from '../utils/errors';
+import { NotFoundError, ValidationError, ForbiddenError } from '../utils/errors';
 import { PollingService } from '@omnitrackr/worker';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { canModifyResource } from '../middleware/authorization.middleware';
 
 /**
  * Watcher Service
- * Business logic for managing watchers
+ * Business logic for managing watchers with tenant isolation
  */
 export class WatcherService {
   private watcherRepo: WatcherRepository;
@@ -34,9 +36,80 @@ export class WatcherService {
   }
 
   /**
-   * Get all watchers with pagination
+   * Get organization ID for a department code
+   */
+  private async getOrganizationIdForDepartment(departmentCode: string): Promise<number | null> {
+    const department = await db('departments')
+      .where({ code: departmentCode, deleted_at: null })
+      .first();
+    return department?.organization_id || null;
+  }
+
+  /**
+   * Validate user has access to watcher based on department
+   */
+  private async validateWatcherAccess(req: AuthenticatedRequest, watcher: Watcher): Promise<void> {
+    // Super admin can access everything
+    if (req.user.role === 'super_admin') {
+      return;
+    }
+
+    // Get department organization_id if watcher has department_code
+    if (watcher.department_code) {
+      const orgId = await this.getOrganizationIdForDepartment(watcher.department_code);
+
+      // Check organization match
+      if (orgId && req.user.organizationId !== orgId) {
+        throw new ForbiddenError('Access denied. Watcher belongs to a different organization.');
+      }
+
+      // For non-owners, check department access
+      if (req.user.role !== 'owner') {
+        const department = await db('departments')
+          .where({ code: watcher.department_code })
+          .first();
+
+        if (department && !req.user.departmentIds.includes(department.id)) {
+          throw new ForbiddenError('Access denied. You do not have access to this department.');
+        }
+      }
+    }
+  }
+
+  /**
+   * Check if user can modify watcher
+   */
+  private async canModifyWatcher(req: AuthenticatedRequest, watcher: Watcher): Promise<boolean> {
+    // Viewers cannot modify
+    if (req.user.role === 'viewer') {
+      return false;
+    }
+
+    // Super admin can modify everything
+    if (req.user.role === 'super_admin') {
+      return true;
+    }
+
+    // Get department info if watcher has department_code
+    if (watcher.department_code) {
+      const department = await db('departments')
+        .where({ code: watcher.department_code })
+        .first();
+
+      if (department) {
+        return canModifyResource(req, department.organization_id, department.id);
+      }
+    }
+
+    // If no department, only owner/super_admin can modify
+    return req.user.role === 'owner';
+  }
+
+  /**
+   * Get all watchers with pagination and organization filtering
    */
   async getAll(
+    req: AuthenticatedRequest,
     page: number = 1,
     limit: number = 20,
     filters?: {
@@ -47,11 +120,37 @@ export class WatcherService {
       direction?: DirectionType;
     }
   ) {
+    // Get user's accessible department codes
+    let departmentCodes: string[] | undefined;
+
+    if (req.user.role === 'super_admin') {
+      // Super admin sees all
+      departmentCodes = undefined;
+    } else if (req.user.role === 'owner') {
+      // Owner sees all departments in their organization
+      const departments = await db('departments')
+        .where({ organization_id: req.user.organizationId, deleted_at: null })
+        .select('code');
+      departmentCodes = departments.map(d => d.code);
+    } else {
+      // Editor/Viewer sees only their assigned departments
+      const departments = await db('departments')
+        .join('user_departments', 'departments.id', 'user_departments.department_id')
+        .where({ 'user_departments.user_id': req.user.id, 'departments.deleted_at': null })
+        .select('departments.code');
+      departmentCodes = departments.map(d => d.code);
+    }
+
     return this.watcherRepo.findWithFilters({
-      ...filters,
+      source_connection_id: filters?.source_connection_id,
+      schedule_id: filters?.schedule_id,
+      department_code: filters?.department_code,
+      status: filters?.status,
+      direction: filters?.direction,
       page,
       limit,
-    });
+      departmentCodes,
+    } as any); // Type assertion needed due to dynamic departmentCodes field
   }
 
   /**
@@ -66,21 +165,48 @@ export class WatcherService {
   }
 
   /**
-   * Get watcher with relations
+   * Get watcher with relations and authorization check
    */
-  async getWithRelations(id: number): Promise<WatcherWithRelations> {
+  async getWithRelations(req: AuthenticatedRequest, id: number): Promise<WatcherWithRelations> {
     const watcher = await this.watcherRepo.findWithRelations(id);
     if (!watcher) {
       throw new NotFoundError('Watcher', id);
     }
+
+    // Validate access
+    await this.validateWatcherAccess(req, watcher);
+
     return watcher;
   }
 
   /**
-   * Create watcher
+   * Create watcher with authorization validation
    * If a soft-deleted watcher with the same name exists, restore and update it
    */
-  async create(request: CreateWatcherRequest, createdBy?: string): Promise<Watcher> {
+  async create(req: AuthenticatedRequest, request: CreateWatcherRequest, createdBy?: string): Promise<Watcher> {
+    // Validate department access
+    if (request.department_code) {
+      const department = await db('departments')
+        .where({ code: request.department_code, deleted_at: null })
+        .first();
+
+      if (!department) {
+        throw new ValidationError(`Department ${request.department_code} not found`);
+      }
+
+      // Check organization match
+      if (req.user.role !== 'super_admin' && department.organization_id !== req.user.organizationId) {
+        throw new ForbiddenError('Cannot create watcher in a different organization');
+      }
+
+      // Check department access for editors/viewers
+      if (!['owner', 'super_admin'].includes(req.user.role)) {
+        if (!req.user.departmentIds.includes(department.id)) {
+          throw new ForbiddenError('You do not have access to this department');
+        }
+      }
+    }
+
     // Validate connection exists
     const connection = await this.connectionRepo.findById(request.source_connection_id);
     if (!connection) {
@@ -169,15 +295,46 @@ export class WatcherService {
   }
 
   /**
-   * Update watcher
+   * Update watcher with authorization validation
    */
   async update(
+    req: AuthenticatedRequest,
     id: number,
     request: UpdateWatcherRequest,
     updatedBy?: string
   ): Promise<Watcher> {
     // Get current watcher state BEFORE update
     const currentWatcher = await this.getById(id);
+
+    // Validate access and modification rights
+    await this.validateWatcherAccess(req, currentWatcher);
+    const canModify = await this.canModifyWatcher(req, currentWatcher);
+    if (!canModify) {
+      throw new ForbiddenError('You do not have permission to modify this watcher');
+    }
+
+    // If department is being changed, validate new department access
+    if (request.department_code && request.department_code !== currentWatcher.department_code) {
+      const department = await db('departments')
+        .where({ code: request.department_code, deleted_at: null })
+        .first();
+
+      if (!department) {
+        throw new ValidationError(`Department ${request.department_code} not found`);
+      }
+
+      // Check organization match
+      if (req.user.role !== 'super_admin' && department.organization_id !== req.user.organizationId) {
+        throw new ForbiddenError('Cannot assign watcher to a different organization');
+      }
+
+      // Check department access for editors/viewers
+      if (!['owner', 'super_admin'].includes(req.user.role)) {
+        if (!req.user.departmentIds.includes(department.id)) {
+          throw new ForbiddenError('You do not have access to this department');
+        }
+      }
+    }
 
     // Validate connection if being changed
     if (request.source_connection_id) {
@@ -222,40 +379,137 @@ export class WatcherService {
   }
 
   /**
-   * Delete watcher (soft delete)
+   * Delete watcher (soft delete) with authorization validation
    */
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(req: AuthenticatedRequest, id: number): Promise<void> {
+    const watcher = await this.getById(id);
+
+    // Validate access and modification rights
+    await this.validateWatcherAccess(req, watcher);
+    const canModify = await this.canModifyWatcher(req, watcher);
+    if (!canModify) {
+      throw new ForbiddenError('You do not have permission to delete this watcher');
+    }
+
     await this.watcherRepo.softDelete(id);
   }
 
   /**
-   * Update watcher status
+   * Update watcher status with authorization validation
+   * When disabling/pausing a watcher, delete future pending file_tracking records
+   * since they won't be checked while paused. SLA Monitor will regenerate them when resumed.
    */
-  async updateStatus(id: number, status: WatcherStatus): Promise<Watcher> {
-    await this.getById(id);
+  async updateStatus(req: AuthenticatedRequest, id: number, status: WatcherStatus): Promise<Watcher> {
+    const watcher = await this.getById(id);
+
+    // Validate access and modification rights
+    await this.validateWatcherAccess(req, watcher);
+    const canModify = await this.canModifyWatcher(req, watcher);
+    if (!canModify) {
+      throw new ForbiddenError('You do not have permission to modify this watcher');
+    }
+
+    // If disabling/pausing the watcher, clean up future pending records
+    if (status === 'disabled' || status === 'paused') {
+      try {
+        const deletedCount = await this.fileTrackingRepo.deleteFuturePendingByWatcher(id);
+        console.log(
+          `ℹ️  Watcher ${id} paused/disabled. Deleted ${deletedCount} future file_tracking records. ` +
+          `Next SLA Monitor cycle will regenerate them when resumed.`
+        );
+      } catch (error) {
+        console.error(`⚠️  Failed to delete future file_tracking records for watcher ${id}:`, error);
+        // Don't fail the status update - just log the error
+      }
+    }
+
     await this.watcherRepo.updateStatus(id, status);
     return this.getById(id);
   }
 
   /**
-   * Get active watchers (for polling)
+   * Get active watchers with organization filtering (for polling)
    */
-  async getActive(): Promise<Watcher[]> {
-    return this.watcherRepo.findActive();
+  async getActive(req: AuthenticatedRequest): Promise<Watcher[]> {
+    const allActive = await this.watcherRepo.findActive();
+
+    // Filter by user's organization/departments
+    if (req.user.role === 'super_admin') {
+      return allActive;
+    }
+
+    // Get user's accessible department codes
+    let accessibleDeptCodes: string[];
+    if (req.user.role === 'owner') {
+      const departments = await db('departments')
+        .where({ organization_id: req.user.organizationId, deleted_at: null })
+        .select('code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    } else {
+      const departments = await db('departments')
+        .join('user_departments', 'departments.id', 'user_departments.department_id')
+        .where({ 'user_departments.user_id': req.user.id, 'departments.deleted_at': null })
+        .select('departments.code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    }
+
+    return allActive.filter(w => !w.department_code || accessibleDeptCodes.includes(w.department_code));
   }
 
   /**
-   * Get watchers by connection
+   * Get watchers by connection with organization filtering
    */
-  async getByConnection(connectionId: number): Promise<Watcher[]> {
-    return this.watcherRepo.findByConnectionId(connectionId);
+  async getByConnection(req: AuthenticatedRequest, connectionId: number): Promise<Watcher[]> {
+    const watchers = await this.watcherRepo.findByConnectionId(connectionId);
+
+    // Filter by user's organization/departments
+    if (req.user.role === 'super_admin') {
+      return watchers;
+    }
+
+    // Get user's accessible department codes
+    let accessibleDeptCodes: string[];
+    if (req.user.role === 'owner') {
+      const departments = await db('departments')
+        .where({ organization_id: req.user.organizationId, deleted_at: null })
+        .select('code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    } else {
+      const departments = await db('departments')
+        .join('user_departments', 'departments.id', 'user_departments.department_id')
+        .where({ 'user_departments.user_id': req.user.id, 'departments.deleted_at': null })
+        .select('departments.code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    }
+
+    return watchers.filter(w => !w.department_code || accessibleDeptCodes.includes(w.department_code));
   }
 
   /**
-   * Get watchers by department
+   * Get watchers by department with authorization validation
    */
-  async getByDepartment(departmentCode: string): Promise<Watcher[]> {
+  async getByDepartment(req: AuthenticatedRequest, departmentCode: string): Promise<Watcher[]> {
+    // Validate department access
+    const department = await db('departments')
+      .where({ code: departmentCode, deleted_at: null })
+      .first();
+
+    if (!department) {
+      throw new NotFoundError('Department', departmentCode);
+    }
+
+    // Check organization match
+    if (req.user.role !== 'super_admin' && department.organization_id !== req.user.organizationId) {
+      throw new ForbiddenError('Access denied. Department belongs to a different organization.');
+    }
+
+    // Check department access for non-owners
+    if (!['owner', 'super_admin'].includes(req.user.role)) {
+      if (!req.user.departmentIds.includes(department.id)) {
+        throw new ForbiddenError('You do not have access to this department');
+      }
+    }
+
     return this.watcherRepo.findByDepartment(departmentCode);
   }
 
@@ -267,16 +521,19 @@ export class WatcherService {
   }
 
   /**
-   * List files from source for a watcher
+   * List files from source for a watcher with authorization
    * Used for manual file override
    */
-  async listFiles(watcherId: number): Promise<Array<{
+  async listFiles(req: AuthenticatedRequest, watcherId: number): Promise<Array<{
     file_name: string;
     file_path: string;
     file_size: number;
     last_modified: Date;
   }>> {
     const watcher = await this.getById(watcherId);
+
+    // Validate access
+    await this.validateWatcherAccess(req, watcher);
     const connection = await this.connectionRepo.findById<SourceConnection>(
       watcher.source_connection_id
     );
@@ -392,10 +649,10 @@ export class WatcherService {
   }
 
   /**
-   * Trigger a manual poll for a watcher
+   * Trigger a manual poll for a watcher with authorization
    * This allows on-demand file checking outside of scheduled intervals
    */
-  async triggerPoll(watcherId: number): Promise<{
+  async triggerPoll(req: AuthenticatedRequest, watcherId: number): Promise<{
     success: boolean;
     message: string;
     filesDetected?: number;
@@ -403,6 +660,13 @@ export class WatcherService {
   }> {
     // Get watcher by ID
     const watcher = await this.getById(watcherId);
+
+    // Validate access and modification rights
+    await this.validateWatcherAccess(req, watcher);
+    const canModify = await this.canModifyWatcher(req, watcher);
+    if (!canModify) {
+      throw new ForbiddenError('You do not have permission to trigger polls for this watcher');
+    }
 
     // Validate watcher is active
     if (watcher.status !== 'active') {

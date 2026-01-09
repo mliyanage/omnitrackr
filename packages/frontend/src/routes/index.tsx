@@ -1,5 +1,6 @@
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 import { FileSourcesPage } from '@/pages/FileSourcesPage';
 import { InwardFilesPage } from '@/pages/InwardFilesPage';
 import WatchersPage from '@/pages/WatchersPage';
@@ -8,12 +9,35 @@ import SchedulesPage from '@/pages/SchedulesPage';
 import DepartmentsPage from '@/pages/DepartmentsPage';
 import FileTrackingPage from '@/pages/FileTrackingPage';
 import AnalyticsDashboardPage from '@/pages/AnalyticsDashboardPage';
+import UsersPage from '@/pages/UsersPage';
+import SettingsPage from '@/pages/SettingsPage';
+import LoginPage from '@/pages/LoginPage';
+import AcceptInvitationPage from '@/pages/AcceptInvitationPage';
+import UnauthorizedPage from '@/pages/UnauthorizedPage';
 import { NotFoundPage } from '@/pages/NotFoundPage';
 
 export const router = createBrowserRouter([
+  // Public routes (no authentication required)
+  {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
+    path: '/accept-invitation',
+    element: <AcceptInvitationPage />,
+  },
+  {
+    path: '/unauthorized',
+    element: <UnauthorizedPage />,
+  },
+  // Protected routes (authentication required)
   {
     path: '/',
-    element: <AppLayout />,
+    element: (
+      <ProtectedRoute>
+        <AppLayout />
+      </ProtectedRoute>
+    ),
     children: [
       {
         index: true,
@@ -59,20 +83,14 @@ export const router = createBrowserRouter([
       {
         path: 'users',
         element: (
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight">Users</h2>
-            <p className="text-muted-foreground">Coming soon...</p>
-          </div>
+          <ProtectedRoute requiredRoles={['owner', 'super_admin']}>
+            <UsersPage />
+          </ProtectedRoute>
         ),
       },
       {
         path: 'settings',
-        element: (
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold tracking-tight">Settings</h2>
-            <p className="text-muted-foreground">Coming soon...</p>
-          </div>
-        ),
+        element: <SettingsPage />,
       },
       {
         path: '*',

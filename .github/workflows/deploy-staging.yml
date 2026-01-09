@@ -75,9 +75,9 @@ jobs:
             --platform=managed \
             --region=${{ env.GCP_REGION }} \
             --allow-unauthenticated \
-            --set-env-vars="NODE_ENV=staging,API_VERSION=v1,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }}" \
+            --set-env-vars="NODE_ENV=staging,API_VERSION=v1,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},APP_URL=https://staging.omnitrackr.dev,CORS_ORIGIN=https://staging.omnitrackr.dev,JWT_ACCESS_EXPIRY=15m,JWT_REFRESH_EXPIRY=30d,BCRYPT_ROUNDS=12,PASSWORD_MIN_LENGTH=8,MAX_LOGIN_ATTEMPTS=5,ACCOUNT_LOCKOUT_MINUTES=15,FROM_EMAIL=${{ secrets.FROM_EMAIL }},FROM_NAME=${{ secrets.FROM_NAME }}" \
             --port=3000 \
-            --update-secrets="DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest" \
+            --update-secrets="DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest,ENCRYPTION_MASTER_KEY=encryption-master-key:latest,MJ_APIKEY_PUBLIC=mj-apikey-public:latest,MJ_APIKEY_PRIVATE=mj-apikey-private:latest" \
             --project=${{ env.GCP_PROJECT_ID }} \
             --min-instances=1 \
             --max-instances=1 \

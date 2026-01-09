@@ -8,7 +8,6 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { getActiveStatusBadge } from '@/lib/badgeHelpers';
 import {
   Table,
   TableBody,
@@ -26,13 +25,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-import type { RefData } from '@/types';
+import { useHasRole } from '@/stores/authStore';
+import { formatDate } from '@/lib/utils';
+import type { Department } from '@/types';
 
 interface DepartmentTableProps {
-  departments: RefData[];
-  onEdit: (department: RefData) => void;
-  onDelete: (id: number, code: string) => void;
-  onToggleActive: (department: RefData) => void;
+  departments: Department[];
+  onEdit: (department: Department) => void;
+  onDelete: (id: number) => void;
+  onToggleActive: (department: Department) => void;
   isLoading?: boolean;
 }
 
@@ -46,54 +47,29 @@ export function DepartmentTable({
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [departmentToDelete, setDepartmentToDelete] = useState<{
     id: number;
-    code: string;
     name: string;
   } | null>(null);
 
-  const isActive = (department: RefData): boolean => {
-    const metadata = department.metadata as { is_active?: boolean } | null | undefined;
-    return metadata?.is_active ?? true;
-  };
+  const isOwnerOrAdmin = useHasRole('owner', 'super_admin');
 
-  const getSortOrder = (department: RefData): number => {
-    const metadata = department.metadata as { sort_order?: number } | null | undefined;
-    return metadata?.sort_order ?? 999;
-  };
-
-  const getDescription = (department: RefData): string => {
-    const metadata = department.metadata as { description?: string } | null | undefined;
-    return metadata?.description ?? '';
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-    });
-  };
-
-  const handleDeleteClick = (id: number, code: string, name: string) => {
-    setDepartmentToDelete({ id, code, name });
+  const handleDeleteClick = (id: number, name: string) => {
+    setDepartmentToDelete({ id, name });
     setDeleteConfirmOpen(true);
   };
 
   const handleDeleteConfirm = () => {
     if (departmentToDelete) {
-      onDelete(departmentToDelete.id, departmentToDelete.code);
+      onDelete(departmentToDelete.id);
       setDepartmentToDelete(null);
     }
   };
 
-  // Sort departments by sort_order, then by name
-  const sortedDepartments = [...departments].sort((a, b) => {
-    const orderA = getSortOrder(a);
-    const orderB = getSortOrder(b);
-    if (orderA !== orderB) {
-      return orderA - orderB;
-    }
-    return (a.value1 || '').localeCompare(b.value1 || '');
-  });
+  // Sort departments by name
+  const sortedDepartments = [...departments].sort((a, b) => a.name.localeCompare(b.name));
+
+  const getStatusBadgeVariant = (status: string) => {
+    return status === 'active' ? 'default' : 'secondary';
+  };
 
   return (
     <div className="rounded-md border">
@@ -101,25 +77,24 @@ export function DepartmentTable({
         <TableHeader>
           <TableRow>
             <TableHead>Name</TableHead>
-            <TableHead>Abbreviation</TableHead>
+            <TableHead>Code</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Sort Order</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Created</TableHead>
-            <TableHead className="w-[80px]">Actions</TableHead>
+            {isOwnerOrAdmin && <TableHead className="w-[80px]">Actions</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
           {isLoading ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center py-12">
+              <TableCell colSpan={isOwnerOrAdmin ? 6 : 5} className="text-center py-12">
                 Loading departments...
               </TableCell>
             </TableRow>
           ) : sortedDepartments.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={isOwnerOrAdmin ? 6 : 5}
                 className="text-center py-12 text-muted-foreground"
               >
                 No departments found. Create your first department to get started.
@@ -129,75 +104,65 @@ export function DepartmentTable({
             sortedDepartments.map((department) => (
               <TableRow key={department.id}>
                 <TableCell>
-                  <div className="font-medium">{department.value1}</div>
+                  <div className="font-medium">{department.name}</div>
                 </TableCell>
                 <TableCell>
                   <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
-                    {department.value2 || 'N/A'}
+                    {department.code}
                   </code>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm text-muted-foreground">
-                    {getDescription(department) || '-'}
+                    {department.description || '-'}
                   </span>
                 </TableCell>
                 <TableCell>
-                  <span className="text-sm">{getSortOrder(department)}</span>
+                  <Badge variant={getStatusBadgeVariant(department.status)}>
+                    {department.status.charAt(0).toUpperCase() + department.status.slice(1)}
+                  </Badge>
                 </TableCell>
                 <TableCell>
-                  {(() => {
-                    const badge = getActiveStatusBadge(isActive(department));
-                    return <Badge variant={badge.variant}>{badge.label}</Badge>;
-                  })()}
+                  <span className="text-sm">{formatDate(department.created_at)}</span>
                 </TableCell>
-                <TableCell>
-                  <span className="text-sm">
-                    {formatDate(department.created_at)}
-                  </span>
-                </TableCell>
-                <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onEdit(department)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onToggleActive(department)}>
-                        {isActive(department) ? (
-                          <>
-                            <ToggleLeft className="mr-2 h-4 w-4" />
-                            Deactivate
-                          </>
-                        ) : (
-                          <>
-                            <ToggleRight className="mr-2 h-4 w-4" />
-                            Activate
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() =>
-                          handleDeleteClick(
-                            department.id,
-                            department.code,
-                            department.value1 || 'this department'
-                          )
-                        }
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
+                {isOwnerOrAdmin && (
+                  <TableCell>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => onEdit(department)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => onToggleActive(department)}>
+                          {department.status === 'active' ? (
+                            <>
+                              <ToggleLeft className="mr-2 h-4 w-4" />
+                              Deactivate
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight className="mr-2 h-4 w-4" />
+                              Activate
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteClick(department.id, department.name)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </TableCell>
+                )}
               </TableRow>
             ))
           )}

@@ -5,10 +5,12 @@ import {
   UpdateSourceConnectionRequest,
   TestSourceConnectionRequest,
 } from '@omnitrackr/shared';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 /**
  * Source Connection Controller
  * Handles HTTP requests for source connection management
+ * Source connections are shared resources across organizations
  */
 export class SourceConnectionController {
   private service: SourceConnectionService;
@@ -84,8 +86,9 @@ export class SourceConnectionController {
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const createRequest: CreateSourceConnectionRequest = req.body;
-      const createdBy = 'system'; // TODO: Get from JWT
+      const createdBy = authReq.user.id.toString();
 
       const connection = await this.service.create(createRequest, createdBy);
 
@@ -104,9 +107,10 @@ export class SourceConnectionController {
    */
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const updateRequest: UpdateSourceConnectionRequest = req.body;
-      const updatedBy = 'system'; // TODO: Get from JWT
+      const updatedBy = authReq.user.id.toString();
 
       const connection = await this.service.update(Number(id), updateRequest, updatedBy);
 

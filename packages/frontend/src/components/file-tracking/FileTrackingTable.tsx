@@ -152,11 +152,6 @@ export function FileTrackingTable({
                   <div className="font-medium">
                     {record.watcher?.name || `Watcher #${record.watcher_id}`}
                   </div>
-                  {record.watcher?.department_code && (
-                    <div className="text-xs text-muted-foreground">
-                      {record.watcher.department_code}
-                    </div>
-                  )}
                 </TableCell>
 
                 {/* Expected Pattern Column */}

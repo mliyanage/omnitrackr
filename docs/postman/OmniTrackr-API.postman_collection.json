@@ -3,16 +3,274 @@
     "name": "OmniTrackr API",
     "description": "Complete API collection for OmniTrackr - File Exchange Monitoring Platform (Updated for New Schema)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "version": "2.0.0"
+    "version": "2.1.0"
   },
   "variable": [
     {
       "key": "baseUrl",
       "value": "http://localhost:3000",
       "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
+    {
+      "name": "Authentication",
+      "description": "User authentication and session management endpoints",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.data.accessToken) {",
+                  "        pm.collectionVariables.set(\"accessToken\", jsonData.data.accessToken);",
+                  "        pm.collectionVariables.set(\"refreshToken\", jsonData.data.refreshToken);",
+                  "        console.log(\"✓ Tokens saved to collection variables\");",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@acme.local\",\n  \"password\": \"Test123!@#\",\n  \"deviceName\": \"Postman\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login with email and password. Returns access token (15min) and refresh token (30 days)."
+          }
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Get authenticated user details. Requires valid access token."
+          }
+        },
+        {
+          "name": "Refresh Access Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    const jsonData = pm.response.json();",
+                  "    if (jsonData.success && jsonData.data.accessToken) {",
+                  "        pm.collectionVariables.set(\"accessToken\", jsonData.data.accessToken);",
+                  "        console.log(\"✓ Access token refreshed\");",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/refresh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "refresh"
+              ]
+            },
+            "description": "Get new access token using refresh token. Use when access token expires."
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"Test123!@#\",\n  \"newPassword\": \"NewPassword123!@#\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/change-password",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "change-password"
+              ]
+            },
+            "description": "Change password for authenticated user. Requires current password. Revokes all sessions."
+          }
+        },
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    pm.collectionVariables.set(\"accessToken\", \"\");",
+                  "    pm.collectionVariables.set(\"refreshToken\", \"\");",
+                  "    console.log(\"✓ Tokens cleared\");",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Logout from current session. Revokes the refresh token."
+          }
+        },
+        {
+          "name": "Logout All Devices",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/logout-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "logout-all"
+              ]
+            },
+            "description": "Logout from all devices. Revokes all refresh tokens for current user."
+          }
+        },
+        {
+          "name": "Request Password Reset",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@acme.local\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/request-password-reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "request-password-reset"
+              ]
+            },
+            "description": "Request password reset link via email. Rate limited to 3 requests per hour."
+          }
+        }
+      ]
+    },
     {
       "name": "Health & Status",
       "item": [
@@ -23,8 +281,13 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/health",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "health"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
             },
             "description": "Check if the API is running and healthy"
           }
@@ -42,14 +305,37 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/source-connections?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections"
+              ],
               "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "20"},
-                {"key": "type", "value": "S3", "disabled": true},
-                {"key": "connection_status", "value": "healthy", "disabled": true},
-                {"key": "enabled", "value": "true", "disabled": true}
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "type",
+                  "value": "S3",
+                  "disabled": true
+                },
+                {
+                  "key": "connection_status",
+                  "value": "healthy",
+                  "disabled": true
+                },
+                {
+                  "key": "enabled",
+                  "value": "true",
+                  "disabled": true
+                }
               ]
             }
           }
@@ -61,8 +347,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "1"
+              ]
             }
           }
         },
@@ -70,15 +362,26 @@
           "name": "Test Connection",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"type\": \"S3\",\n  \"connection_config\": {\n    \"region\": \"us-east-1\",\n    \"bucket\": \"test-bucket\",\n    \"accessKeyId\": \"AKIATEST123\",\n    \"secretAccessKey\": \"secret123\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/test",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "test"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "test"
+              ]
             },
             "description": "Test a connection configuration before creating"
           }
@@ -87,15 +390,25 @@
           "name": "Create S3 Connection",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Production S3 Bucket\",\n  \"type\": \"S3\",\n  \"description\": \"Main production S3 bucket for customer data\",\n  \"connection_config\": {\n    \"region\": \"us-east-1\",\n    \"bucket\": \"prod-customer-data\",\n    \"accessKeyId\": \"AKIATEST123\",\n    \"secretAccessKey\": \"secret123\"\n  },\n  \"enabled\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/source-connections",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections"
+              ]
             }
           }
         },
@@ -103,15 +416,26 @@
           "name": "Update Connection",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Connection Name\",\n  \"description\": \"Updated description\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "1"
+              ]
             }
           }
         },
@@ -122,8 +446,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/1/health-check",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "1", "health-check"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "1",
+                "health-check"
+              ]
             },
             "description": "Run health check on a connection"
           }
@@ -132,15 +463,27 @@
           "name": "Toggle Connection Enabled",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": false\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/1/toggle",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "1", "toggle"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "1",
+                "toggle"
+              ]
             }
           }
         },
@@ -151,8 +494,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/source-connections/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "source-connections", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "source-connections",
+                "1"
+              ]
             },
             "description": "Soft delete a connection"
           }
@@ -170,13 +519,32 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules"
+              ],
               "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "20"},
-                {"key": "frequency_type", "value": "daily", "disabled": true},
-                {"key": "enabled", "value": "true", "disabled": true}
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "frequency_type",
+                  "value": "daily",
+                  "disabled": true
+                },
+                {
+                  "key": "enabled",
+                  "value": "true",
+                  "disabled": true
+                }
               ]
             }
           }
@@ -188,8 +556,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules/active",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "active"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "active"
+              ]
             },
             "description": "Get all active (enabled and within valid period) schedules"
           }
@@ -201,8 +575,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1"
+              ]
             },
             "description": "Get schedule with exclusions"
           }
@@ -211,15 +591,25 @@
           "name": "Create Schedule - Every 15 Minutes",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Every 15 minutes\",\n  \"description\": \"Continuous polling every 15 minutes\",\n  \"frequency_type\": \"minutely\",\n  \"interval\": 15,\n  \"timezone\": \"UTC\",\n  \"enabled\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules"
+              ]
             }
           }
         },
@@ -227,15 +617,25 @@
           "name": "Create Schedule - Weekdays 9am",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Weekdays at 9am EST\",\n  \"description\": \"Monday through Friday at 9:00 AM Eastern\",\n  \"frequency_type\": \"weekly\",\n  \"interval\": 1,\n  \"execution_times\": [\"09:00\"],\n  \"days_of_week\": [1, 2, 3, 4, 5],\n  \"timezone\": \"America/New_York\",\n  \"enabled\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules"
+              ]
             }
           }
         },
@@ -243,15 +643,25 @@
           "name": "Create Schedule - Last Friday of Month",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Last Friday at 5pm\",\n  \"description\": \"Last Friday of each month at 5:00 PM\",\n  \"frequency_type\": \"monthly\",\n  \"interval\": 1,\n  \"execution_times\": [\"17:00\"],\n  \"days_of_week\": [5],\n  \"week_of_month\": [-1],\n  \"timezone\": \"UTC\",\n  \"enabled\": true\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules"
+              ]
             }
           }
         },
@@ -259,15 +669,26 @@
           "name": "Update Schedule",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Schedule Name\",\n  \"interval\": 30\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1"
+              ]
             }
           }
         },
@@ -275,15 +696,27 @@
           "name": "Toggle Schedule Enabled",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"enabled\": false\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1/toggle",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1", "toggle"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1",
+                "toggle"
+              ]
             }
           }
         },
@@ -294,8 +727,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1/exclusions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1", "exclusions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1",
+                "exclusions"
+              ]
             }
           }
         },
@@ -303,15 +743,27 @@
           "name": "Add Exclusion - Specific Date",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"exclusion_type\": \"specific_date\",\n  \"excluded_date\": \"2025-12-25\",\n  \"reason\": \"Christmas Day\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1/exclusions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1", "exclusions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1",
+                "exclusions"
+              ]
             }
           }
         },
@@ -319,15 +771,27 @@
           "name": "Add Exclusion - Date Range",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"exclusion_type\": \"date_range\",\n  \"excluded_from\": \"2025-07-01\",\n  \"excluded_to\": \"2025-07-07\",\n  \"reason\": \"System Maintenance Window\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1/exclusions",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1", "exclusions"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1",
+                "exclusions"
+              ]
             }
           }
         },
@@ -338,8 +802,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules/exclusions/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "exclusions", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "exclusions",
+                "1"
+              ]
             }
           }
         },
@@ -350,8 +821,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/schedules/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "schedules", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "schedules",
+                "1"
+              ]
             }
           }
         }
@@ -368,15 +845,42 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers"
+              ],
               "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "20"},
-                {"key": "source_connection_id", "value": "1", "disabled": true},
-                {"key": "schedule_id", "value": "1", "disabled": true},
-                {"key": "department_code", "value": "DEPARTMENT:Finance", "disabled": true},
-                {"key": "status", "value": "active", "disabled": true}
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "source_connection_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "schedule_id",
+                  "value": "1",
+                  "disabled": true
+                },
+                {
+                  "key": "department_code",
+                  "value": "DEPARTMENT:Finance",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "disabled": true
+                }
               ]
             }
           }
@@ -388,8 +892,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers/active",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "active"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "active"
+              ]
             }
           }
         },
@@ -400,8 +910,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers/by-connection/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "by-connection", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "by-connection",
+                "1"
+              ]
             }
           }
         },
@@ -412,8 +929,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers/by-department/DEPARTMENT:Finance",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "by-department", "DEPARTMENT:Finance"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "by-department",
+                "DEPARTMENT:Finance"
+              ]
             }
           }
         },
@@ -424,8 +948,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "1"
+              ]
             },
             "description": "Get watcher with relations (connection, schedule, department)"
           }
@@ -434,15 +964,25 @@
           "name": "Create Watcher",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"source_connection_id\": 1,\n  \"schedule_id\": 1,\n  \"department_code\": \"DEPARTMENT:Finance\",\n  \"name\": \"Daily Sales Report Watcher\",\n  \"description\": \"Monitors for daily sales reports\",\n  \"file_name_pattern\": \"sales_*.csv\",\n  \"file_path_pattern\": \"/reports/sales/\",\n  \"match_rule\": \"partial\",\n  \"sla_enabled\": true,\n  \"sla_threshold_minutes\": 120,\n  \"direction\": \"inward\",\n  \"owner_team\": \"Finance Team\",\n  \"status\": \"active\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/watchers",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers"
+              ]
             }
           }
         },
@@ -450,15 +990,26 @@
           "name": "Update Watcher",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Updated Watcher Name\",\n  \"sla_threshold_minutes\": 180\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/watchers/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "1"
+              ]
             }
           }
         },
@@ -466,15 +1017,27 @@
           "name": "Update Watcher Status",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"status\": \"paused\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/watchers/1/status",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "1", "status"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "1",
+                "status"
+              ]
             },
             "description": "Valid statuses: active, paused, error, disabled"
           }
@@ -486,8 +1049,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/watchers/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "watchers", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "watchers",
+                "1"
+              ]
             },
             "description": "Soft delete a watcher"
           }
@@ -505,12 +1074,27 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data?page=1&limit=100",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data"
+              ],
               "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "100"},
-                {"key": "code_prefix", "value": "DEPARTMENT:", "disabled": true}
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "100"
+                },
+                {
+                  "key": "code_prefix",
+                  "value": "DEPARTMENT:",
+                  "disabled": true
+                }
               ]
             }
           }
@@ -522,8 +1106,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/categories",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "categories"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "categories"
+              ]
             },
             "description": "Get all category prefixes (DEPARTMENT, TIMEZONE, etc.)"
           }
@@ -535,8 +1125,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/departments",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "departments"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "departments"
+              ]
             }
           }
         },
@@ -547,8 +1143,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/timezones",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "timezones"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "timezones"
+              ]
             }
           }
         },
@@ -559,8 +1161,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/sla-thresholds",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "sla-thresholds"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "sla-thresholds"
+              ]
             }
           }
         },
@@ -571,8 +1179,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/holidays/HOLIDAY_US_2025",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "holidays", "HOLIDAY_US_2025"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "holidays",
+                "HOLIDAY_US_2025"
+              ]
             }
           }
         },
@@ -583,8 +1198,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Finance",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "code", "DEPARTMENT:Finance"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "code",
+                "DEPARTMENT:Finance"
+              ]
             }
           }
         },
@@ -595,8 +1217,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/prefix/DEPARTMENT:",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "prefix", "DEPARTMENT:"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "prefix",
+                "DEPARTMENT:"
+              ]
             }
           }
         },
@@ -607,9 +1236,20 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/search?q=Finance",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "search"],
-              "query": [{"key": "q", "value": "Finance"}]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "q",
+                  "value": "Finance"
+                }
+              ]
             }
           }
         },
@@ -617,15 +1257,25 @@
           "name": "Create Reference Data",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"code\": \"DEPARTMENT:Marketing\",\n  \"value1\": \"Marketing\",\n  \"value2\": \"MKT\",\n  \"metadata\": {\n    \"description\": \"Marketing Department\"\n  }\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/ref-data",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data"
+              ]
             }
           }
         },
@@ -633,15 +1283,27 @@
           "name": "Update Reference Data",
           "request": {
             "method": "PATCH",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"value1\": \"Updated Value\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Marketing",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "code", "DEPARTMENT:Marketing"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "code",
+                "DEPARTMENT:Marketing"
+              ]
             }
           }
         },
@@ -652,8 +1314,15 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/ref-data/code/DEPARTMENT:Marketing",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "ref-data", "code", "DEPARTMENT:Marketing"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "ref-data",
+                "code",
+                "DEPARTMENT:Marketing"
+              ]
             }
           }
         }
@@ -670,12 +1339,27 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/file-sources?page=1&limit=20",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "file-sources"
+              ],
               "query": [
-                {"key": "page", "value": "1"},
-                {"key": "limit", "value": "20"},
-                {"key": "department", "value": "Finance", "disabled": true}
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "department",
+                  "value": "Finance",
+                  "disabled": true
+                }
               ]
             }
           }
@@ -687,8 +1371,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/file-sources/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "file-sources",
+                "1"
+              ]
             }
           }
         },
@@ -696,15 +1386,27 @@
           "name": "Test S3 Connection",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"my-test-bucket\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/file-sources/s3/test-connection",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3", "test-connection"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "file-sources",
+                "s3",
+                "test-connection"
+              ]
             }
           }
         },
@@ -712,15 +1414,26 @@
           "name": "Create S3 File Source",
           "request": {
             "method": "POST",
-            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
             "body": {
               "mode": "raw",
               "raw": "{\n  \"name\": \"Customer Data Bucket\",\n  \"department\": \"Finance\",\n  \"awsAccessKeyId\": \"AKIAIOSFODNN7EXAMPLE\",\n  \"awsSecretAccessKey\": \"wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY\",\n  \"bucketName\": \"customer-data-prod\",\n  \"bucketRegion\": \"us-east-1\",\n  \"monitorPath\": \"/inbound/daily/\",\n  \"fileNamePattern\": \"customer_*.csv\",\n  \"matchRule\": \"partial\",\n  \"schedule\": \"09:00\",\n  \"timezone\": \"America/New_York\",\n  \"slaThreshold\": 120,\n  \"direction\": \"inward\"\n}"
             },
             "url": {
               "raw": "{{baseUrl}}/api/file-sources/s3",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "s3"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "file-sources",
+                "s3"
+              ]
             }
           }
         },
@@ -731,8 +1444,14 @@
             "header": [],
             "url": {
               "raw": "{{baseUrl}}/api/file-sources/1",
-              "host": ["{{baseUrl}}"],
-              "path": ["api", "file-sources", "1"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "file-sources",
+                "1"
+              ]
             }
           }
         }

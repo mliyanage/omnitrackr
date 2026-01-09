@@ -16,7 +16,13 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Card,
   CardContent,
@@ -24,140 +30,133 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { createRefData, updateRefData, getDepartments } from '@/api/refData.api';
-import type { RefData } from '@/types';
+import {
+  createDepartment,
+  updateDepartment,
+  listDepartments,
+  type CreateDepartmentRequest,
+  type UpdateDepartmentRequest,
+} from '@/api/departments.api';
+import type { Department } from '@/types';
 import { showError } from '@/lib/toast';
 
 const departmentFormSchema = z.object({
   name: z.string().min(1, 'Department name is required'),
-  abbreviation: z.string().min(1, 'Department code is required'),
+  code: z
+    .string()
+    .min(1, 'Department code is required')
+    .max(10, 'Department code must be 10 characters or less')
+    .regex(/^[A-Z0-9_]+$/, 'Code must be uppercase letters, numbers, or underscores only'),
   description: z.string().optional(),
-  is_active: z.boolean().default(true),
-  sort_order: z.coerce.number().int().min(0).optional().nullable(),
+  status: z.enum(['active', 'inactive']).default('active'),
 });
 
 type DepartmentFormValues = z.infer<typeof departmentFormSchema>;
 
 interface DepartmentFormProps {
-  department?: RefData;
-  onSuccess: (department: RefData) => void;
+  department?: Department;
+  onSuccess: () => void;
   onCancel: () => void;
 }
 
-export function DepartmentForm({
-  department,
-  onSuccess,
-  onCancel,
-}: DepartmentFormProps) {
+export function DepartmentForm({ department, onSuccess, onCancel }: DepartmentFormProps) {
   const queryClient = useQueryClient();
   const isEditing = !!department;
-  const [nameError, setNameError] = useState<string | null>(null);
+  const [codeError, setCodeError] = useState<string | null>(null);
 
   // Fetch existing departments to check for duplicates
   const { data: existingDepartments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: getDepartments,
+    queryFn: listDepartments,
+    select: (response) => response.data || [],
   });
 
   const form = useForm<DepartmentFormValues>({
     resolver: zodResolver(departmentFormSchema),
     defaultValues: department
       ? {
-          name: department.value1 || '',
-          abbreviation: department.value2 || '',
-          description: (department.metadata as any)?.description || '',
-          is_active: (department.metadata as any)?.is_active !== false,
-          sort_order: (department.metadata as any)?.sort_order || null,
+          name: department.name,
+          code: department.code,
+          description: department.description || '',
+          status: department.status,
         }
       : {
           name: '',
-          abbreviation: '',
+          code: '',
           description: '',
-          is_active: true,
-          sort_order: null,
+          status: 'active',
         },
   });
 
   const createMutation = useMutation({
-    mutationFn: createRefData,
-    onSuccess: (data) => {
+    mutationFn: createDepartment,
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
-      onSuccess(data);
+      onSuccess();
     },
-    onError: (error) => {
-      showError(error);
-    },
+    onError: showError,
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ code, data }: { code: string; data: Partial<typeof createRefData> }) =>
-      updateRefData(code, data),
-    onSuccess: (data) => {
+    mutationFn: ({ id, data }: { id: number; data: UpdateDepartmentRequest }) =>
+      updateDepartment(id, data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
-      onSuccess(data);
+      onSuccess();
     },
-    onError: (error) => {
-      showError(error);
-    },
+    onError: showError,
   });
 
-  // Check for duplicate department name
-  const checkDuplicateName = (name: string): boolean => {
-    if (!name.trim()) return false;
+  // Validate code uniqueness
+  const validateCode = (code: string): boolean => {
+    setCodeError(null);
 
-    const duplicateExists = existingDepartments.some(
-      (dept) =>
-        dept.value1?.toLowerCase() === name.toLowerCase() &&
-        (!isEditing || dept.id !== department?.id) // Allow same name when editing same department
+    const duplicate = existingDepartments.find(
+      (d) => d.code === code && (!isEditing || d.id !== department.id)
     );
 
-    if (duplicateExists) {
-      setNameError(`Department "${name}" already exists`);
-      return true;
+    if (duplicate) {
+      setCodeError('This code is already used by another department');
+      return false;
     }
 
-    setNameError(null);
-    return false;
+    return true;
   };
 
-  // Watch name field for changes
-  const watchedName = form.watch('name');
+  // Watch code field for validation
+  const codeValue = form.watch('code');
   useEffect(() => {
-    if (watchedName) {
-      checkDuplicateName(watchedName);
+    if (codeValue) {
+      validateCode(codeValue);
     }
-  }, [watchedName, existingDepartments]);
+  }, [codeValue, existingDepartments]);
 
-  const onSubmit = (data: DepartmentFormValues) => {
-    // Final validation before submit
-    if (checkDuplicateName(data.name)) {
-      form.setError('name', {
+  const onSubmit = async (values: DepartmentFormValues) => {
+    // Final validation
+    if (!validateCode(values.code)) {
+      form.setError('code', {
         type: 'manual',
-        message: `Department "${data.name}" already exists`,
+        message: codeError || 'Invalid code',
       });
       return;
     }
 
-    const payload = {
-      value1: data.name,
-      value2: data.abbreviation,
-      metadata: {
-        description: data.description,
-        is_active: data.is_active,
-        sort_order: data.sort_order,
-      },
-    };
-
-    if (isEditing) {
-      updateMutation.mutate({
-        code: department!.code,
-        data: payload,
-      });
+    if (isEditing && department) {
+      const updateData: UpdateDepartmentRequest = {
+        name: values.name,
+        code: values.code,
+        description: values.description || undefined,
+        status: values.status,
+      };
+      await updateMutation.mutateAsync({ id: department.id, data: updateData });
     } else {
-      createMutation.mutate({
-        code: `DEPARTMENT:${data.name}`,
-        ...payload,
-      });
+      const createData: CreateDepartmentRequest = {
+        name: values.name,
+        code: values.code,
+        description: values.description || undefined,
+        status: values.status,
+      };
+      await createMutation.mutateAsync(createData);
     }
   };
 
@@ -168,138 +167,122 @@ export function DepartmentForm({
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <Card>
           <CardHeader>
-            <CardTitle>Department Details</CardTitle>
+            <CardTitle>Basic Information</CardTitle>
             <CardDescription>
-              Configure the department information and settings
+              Enter the department name and a unique code for identification
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Department Name */}
             <FormField
               control={form.control}
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Department Name</FormLabel>
+                  <FormLabel>Department Name *</FormLabel>
                   <FormControl>
-                    <Input
-                      placeholder="Finance"
-                      {...field}
-                      className={nameError ? 'border-red-500' : ''}
-                    />
+                    <Input placeholder="e.g., Finance" {...field} disabled={isLoading} />
                   </FormControl>
-                  <FormDescription>
-                    The display name for this department (e.g., Finance, Operations)
-                  </FormDescription>
-                  {nameError && (
-                    <p className="text-sm text-red-600 font-medium mt-1">
-                      {nameError}
-                    </p>
-                  )}
+                  <FormDescription>The full name of the department</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Department Code */}
             <FormField
               control={form.control}
-              name="abbreviation"
+              name="code"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Department Code</FormLabel>
+                  <FormLabel>Department Code *</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="FIN"
+                      placeholder="e.g., FIN"
                       {...field}
-                      className="font-mono text-sm"
+                      disabled={isLoading}
+                      onChange={(e) => {
+                        const uppercase = e.target.value.toUpperCase();
+                        field.onChange(uppercase);
+                      }}
                     />
                   </FormControl>
                   <FormDescription>
-                    A unique identifier for this department (e.g., FIN, HR, IT)
+                    A short, unique code (uppercase letters, numbers, underscores only)
                   </FormDescription>
+                  {codeError && <p className="text-sm text-destructive">{codeError}</p>}
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Description */}
             <FormField
               control={form.control}
               name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormLabel>Description</FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="Brief description of this department"
-                      className="resize-none"
+                      placeholder="Brief description of the department..."
                       {...field}
+                      disabled={isLoading}
+                      rows={3}
                     />
                   </FormControl>
+                  <FormDescription>Optional description of the department's purpose</FormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
 
+            {/* Status */}
             <FormField
               control={form.control}
-              name="sort_order"
+              name="status"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Sort Order (Optional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="number"
-                      min="0"
-                      placeholder="0"
-                      {...field}
-                      value={field.value || ''}
-                      className="max-w-[200px]"
-                    />
-                  </FormControl>
+                  <FormLabel>Status *</FormLabel>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={isLoading}
+                  >
+                    <FormControl>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="inactive">Inactive</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <FormDescription>
-                    Lower numbers appear first in lists
+                    Inactive departments are hidden from selection lists
                   </FormDescription>
                   <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="is_active"
-              render={({ field }) => (
-                <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
-                  <FormControl>
-                    <Checkbox
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                  </FormControl>
-                  <div className="space-y-1 leading-none">
-                    <FormLabel className="text-sm font-medium">
-                      Active Department
-                    </FormLabel>
-                    <FormDescription>
-                      Inactive departments will be hidden from selection
-                    </FormDescription>
-                  </div>
                 </FormItem>
               )}
             />
           </CardContent>
         </Card>
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onCancel}
-            disabled={isLoading}
-          >
+        {/* Form Actions */}
+        <div className="flex gap-3 pt-4">
+          <Button type="button" variant="outline" onClick={onCancel} disabled={isLoading} className="flex-1">
             Cancel
           </Button>
-          <Button type="submit" disabled={isLoading || !!nameError}>
-            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {isEditing ? 'Update Department' : 'Create Department'}
+          <Button type="submit" disabled={isLoading || !!codeError} className="flex-1">
+            {isLoading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                {isEditing ? 'Updating...' : 'Creating...'}
+              </>
+            ) : (
+              <>{isEditing ? 'Update Department' : 'Create Department'}</>
+            )}
           </Button>
         </div>
       </form>

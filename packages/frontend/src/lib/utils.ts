@@ -41,6 +41,20 @@ export function formatDateTime(dateString: string | null | undefined): string {
 }
 
 /**
+ * Format date without time (e.g., "Nov 30, 2025")
+ */
+export function formatDate(dateString: string | null | undefined): string {
+  if (!dateString) return 'Never';
+
+  const date = new Date(dateString);
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+/**
  * Format file size in human-readable format (e.g., "1.23 MB")
  */
 export function formatFileSize(bytes: number | null | undefined): string {

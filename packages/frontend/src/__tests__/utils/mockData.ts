@@ -1,10 +1,10 @@
 import type {
   SourceConnection,
   Schedule,
-  RefData,
   Watcher,
   S3ConnectionConfig,
 } from '@/types/watcher.types';
+import type { Department } from '@/types';
 
 // Mock S3 Connection
 export const mockConnection: SourceConnection = {
@@ -51,24 +51,20 @@ export const mockSchedule: Schedule = {
   updated_by: null,
 };
 
-// Mock Department (RefData)
-export const mockDepartment: RefData = {
+// Mock Department
+export const mockDepartment: Department = {
   id: 1,
-  code: 'DEPARTMENT:Finance',
-  value1: 'Finance',
-  value2: 'FIN',
-  value3: null,
-  value4: null,
-  value5: null,
-  metadata: {
-    description: 'Finance department',
-    is_active: true,
-    sort_order: 1,
-  },
+  organization_id: 1,
+  name: 'Finance',
+  code: 'FIN',
+  description: 'Finance department',
+  status: 'active',
+  settings: {},
   created_at: new Date().toISOString(),
   updated_at: new Date().toISOString(),
   created_by: '1',
   updated_by: null,
+  deleted_at: null,
 };
 
 // Mock Watcher
@@ -113,7 +109,7 @@ export const createMockSchedule = (overrides?: Partial<Schedule>): Schedule => (
   ...overrides,
 });
 
-export const createMockDepartment = (overrides?: Partial<RefData>): RefData => ({
+export const createMockDepartment = (overrides?: Partial<Department>): Department => ({
   ...mockDepartment,
   ...overrides,
 });
@@ -152,18 +148,15 @@ export const mockSchedules: Schedule[] = [
   }),
 ];
 
-export const mockDepartments: RefData[] = [
+export const mockDepartments: Department[] = [
   mockDepartment,
   createMockDepartment({
     id: 2,
-    code: 'DEPARTMENT:IT',
-    value1: 'Information Technology',
-    value2: 'IT',
-    metadata: {
-      description: 'IT department',
-      is_active: true,
-      sort_order: 2,
-    },
+    organization_id: 1,
+    name: 'Information Technology',
+    code: 'IT',
+    description: 'IT department',
+    status: 'active',
   }),
 ];
 

@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { WatcherService } from '../services/watcher.service';
 import { CreateWatcherRequest, UpdateWatcherRequest } from '@omnitrackr/shared';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { addOrganizationFilter, addDepartmentFilter } from '../middleware/authorization.middleware';
 
 /**
  * Watcher Controller
@@ -15,9 +17,11 @@ export class WatcherController {
 
   /**
    * GET /api/watchers
+   * List watchers with organization and department filtering
    */
   getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const {
         page,
         limit,
@@ -28,7 +32,12 @@ export class WatcherController {
         direction,
       } = req.query;
 
+      // Apply organization and department filters
+      const orgFilter = addOrganizationFilter(authReq);
+      const deptFilter = addDepartmentFilter(authReq);
+
       const result = await this.service.getAll(
+        authReq,
         Number(page) || 1,
         Number(limit) || 20,
         {
@@ -52,11 +61,13 @@ export class WatcherController {
 
   /**
    * GET /api/watchers/:id
+   * Get watcher by ID with authorization check
    */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const watcher = await this.service.getWithRelations(Number(id));
+      const watcher = await this.service.getWithRelations(authReq, Number(id));
 
       res.status(200).json({
         success: true,
@@ -69,13 +80,15 @@ export class WatcherController {
 
   /**
    * POST /api/watchers
+   * Create watcher with authorization validation
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const createRequest: CreateWatcherRequest = req.body;
-      const createdBy = 'system'; // TODO: Get from JWT
+      const createdBy = authReq.user.id.toString();
 
-      const watcher = await this.service.create(createRequest, createdBy);
+      const watcher = await this.service.create(authReq, createRequest, createdBy);
 
       res.status(201).json({
         success: true,
@@ -89,14 +102,16 @@ export class WatcherController {
 
   /**
    * PATCH /api/watchers/:id
+   * Update watcher with authorization validation
    */
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const updateRequest: UpdateWatcherRequest = req.body;
-      const updatedBy = 'system'; // TODO: Get from JWT
+      const updatedBy = authReq.user.id.toString();
 
-      const watcher = await this.service.update(Number(id), updateRequest, updatedBy);
+      const watcher = await this.service.update(authReq, Number(id), updateRequest, updatedBy);
 
       res.status(200).json({
         success: true,
@@ -110,11 +125,13 @@ export class WatcherController {
 
   /**
    * DELETE /api/watchers/:id
+   * Delete watcher with authorization validation
    */
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      await this.service.delete(Number(id));
+      await this.service.delete(authReq, Number(id));
 
       res.status(200).json({
         success: true,
@@ -127,13 +144,15 @@ export class WatcherController {
 
   /**
    * PATCH /api/watchers/:id/status
+   * Update watcher status with authorization validation
    */
   updateStatus = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const { status } = req.body;
 
-      const watcher = await this.service.updateStatus(Number(id), status);
+      const watcher = await this.service.updateStatus(authReq, Number(id), status);
 
       res.status(200).json({
         success: true,
@@ -147,10 +166,12 @@ export class WatcherController {
 
   /**
    * GET /api/watchers/active
+   * Get active watchers with organization filtering
    */
   getActive = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const watchers = await this.service.getActive();
+      const authReq = req as AuthenticatedRequest;
+      const watchers = await this.service.getActive(authReq);
 
       res.status(200).json({
         success: true,
@@ -163,11 +184,13 @@ export class WatcherController {
 
   /**
    * GET /api/watchers/by-connection/:connectionId
+   * Get watchers by connection with organization filtering
    */
   getByConnection = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { connectionId } = req.params;
-      const watchers = await this.service.getByConnection(Number(connectionId));
+      const watchers = await this.service.getByConnection(authReq, Number(connectionId));
 
       res.status(200).json({
         success: true,
@@ -180,11 +203,13 @@ export class WatcherController {
 
   /**
    * GET /api/watchers/by-department/:departmentCode
+   * Get watchers by department with authorization validation
    */
   getByDepartment = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { departmentCode } = req.params;
-      const watchers = await this.service.getByDepartment(departmentCode);
+      const watchers = await this.service.getByDepartment(authReq, departmentCode);
 
       res.status(200).json({
         success: true,
@@ -197,12 +222,13 @@ export class WatcherController {
 
   /**
    * GET /api/watchers/:id/files
-   * List files from source for manual override
+   * List files from source for manual override with authorization
    */
   listFiles = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const files = await this.service.listFiles(Number(id));
+      const files = await this.service.listFiles(authReq, Number(id));
 
       res.status(200).json({
         success: true,
@@ -215,12 +241,13 @@ export class WatcherController {
 
   /**
    * POST /api/watchers/:id/poll
-   * Trigger manual poll for a watcher
+   * Trigger manual poll for a watcher with authorization
    */
   triggerPoll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const result = await this.service.triggerPoll(Number(id));
+      const result = await this.service.triggerPoll(authReq, Number(id));
 
       res.status(200).json({
         success: true,

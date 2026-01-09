@@ -1,10 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
 import { FileTrackingService } from '../services/fileTracking.service';
 import { FileTrackingQueryOptions } from '@omnitrackr/shared';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 /**
  * File Tracking Controller
- * Handles HTTP requests for file tracking operations
+ * Handles HTTP requests for file tracking operations with tenant isolation
  */
 export class FileTrackingController {
   private service: FileTrackingService;
@@ -15,10 +16,11 @@ export class FileTrackingController {
 
   /**
    * GET /api/file-tracking
-   * Get all file tracking records with filters and pagination
+   * Get all file tracking records with filters and pagination (tenant-filtered)
    */
   getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const {
         watcher_id,
         tracking_status,
@@ -41,7 +43,7 @@ export class FileTrackingController {
         limit: limit ? Number(limit) : 50,
       };
 
-      const result = await this.service.getFileTracking(options);
+      const result = await this.service.getFileTracking(authReq, options);
 
       res.status(200).json({
         success: true,
@@ -55,12 +57,13 @@ export class FileTrackingController {
 
   /**
    * GET /api/file-tracking/:id
-   * Get a single file tracking record by ID
+   * Get a single file tracking record by ID with authorization check
    */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const record = await this.service.getFileTrackingById(Number(id));
+      const record = await this.service.getFileTrackingById(authReq, Number(id));
 
       if (!record) {
         return res.status(404).json({
@@ -80,10 +83,11 @@ export class FileTrackingController {
 
   /**
    * GET /api/file-tracking/summary
-   * Get SLA dashboard summary with all filters
+   * Get SLA dashboard summary with all filters (tenant-filtered)
    */
   getSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const {
         from_date,
         to_date,
@@ -93,7 +97,7 @@ export class FileTrackingController {
         direction,
       } = req.query;
 
-      const summary = await this.service.getSLASummary({
+      const summary = await this.service.getSLASummary(authReq, {
         from_date: from_date as string,
         to_date: to_date as string,
         watcher_id: watcher_id ? Number(watcher_id) : undefined,
@@ -113,13 +117,15 @@ export class FileTrackingController {
 
   /**
    * GET /api/file-tracking/alerts
-   * Get missing file alerts
+   * Get missing file alerts (tenant-filtered)
    */
   getAlerts = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { watcher_id, from_date, to_date } = req.query;
 
       const alerts = await this.service.getMissingFileAlerts(
+        authReq,
         watcher_id ? Number(watcher_id) : undefined,
         from_date ? new Date(from_date as string) : undefined,
         to_date ? new Date(to_date as string) : undefined
@@ -136,10 +142,11 @@ export class FileTrackingController {
 
   /**
    * POST /api/file-tracking/:id/mark-arrived
-   * Manually mark a file tracking record as arrived
+   * Manually mark a file tracking record as arrived with authorization
    */
   markAsArrived = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const { file_path, file_name, file_size, arrived_at } = req.body;
 
@@ -152,6 +159,7 @@ export class FileTrackingController {
       }
 
       const updatedRecord = await this.service.markFileAsArrived(
+        authReq,
         Number(id),
         {
           file_path,

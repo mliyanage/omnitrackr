@@ -75,8 +75,9 @@ export class RefDataController {
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as any; // AuthenticatedRequest
       const createRequest: CreateRefDataRequest = req.body;
-      const createdBy = 'system'; // TODO: Get from JWT
+      const createdBy = authReq.user?.id?.toString() || 'system';
 
       const refData = await this.service.create(createRequest, createdBy);
 
@@ -95,9 +96,10 @@ export class RefDataController {
    */
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as any; // AuthenticatedRequest
       const { code } = req.params;
       const updateRequest: UpdateRefDataRequest = req.body;
-      const updatedBy = 'system'; // TODO: Get from JWT
+      const updatedBy = authReq.user?.id?.toString() || 'system';
 
       const refData = await this.service.update(code, updateRequest, updatedBy);
 

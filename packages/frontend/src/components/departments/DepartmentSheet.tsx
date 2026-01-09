@@ -7,13 +7,13 @@ import {
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { DepartmentForm } from './DepartmentForm';
-import type { RefData } from '@/types';
+import type { Department } from '@/types';
 
 interface DepartmentSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  department?: RefData;
-  onSuccess: (department: RefData) => void;
+  department?: Department;
+  onSuccess: () => void;
 }
 
 export function DepartmentSheet({
@@ -24,8 +24,8 @@ export function DepartmentSheet({
 }: DepartmentSheetProps) {
   const isEditing = !!department;
 
-  const handleSuccess = (newDepartment: RefData) => {
-    onSuccess(newDepartment);
+  const handleSuccess = () => {
+    onSuccess();
     onOpenChange(false);
   };
 

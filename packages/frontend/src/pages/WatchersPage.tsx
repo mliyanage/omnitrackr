@@ -6,8 +6,7 @@ import {
   Play,
   Pencil,
   Trash2,
-  Ban,
-  CheckCircle,
+  Pause,
   Eye,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +40,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { WatcherSheet } from '@/components/watchers/WatcherSheet';
 import { WatcherViewSheet } from '@/components/watchers/WatcherViewSheet';
 import { getWatchers, deleteWatcher, triggerWatcherPoll, updateWatcherStatus } from '@/api/watchers.api';
-import { getDepartments } from '@/api/refData.api';
+import { listDepartments } from '@/api/departments.api';
 import { showSuccess, showError } from '@/lib/toast';
 import type { Watcher } from '@/types';
 
@@ -68,7 +67,8 @@ export default function WatchersPage() {
 
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: getDepartments,
+    queryFn: listDepartments,
+    select: (response) => response.data || [],
   });
 
   const deleteMutation = useMutation({
@@ -226,7 +226,7 @@ export default function WatchersPage() {
             <SelectItem value="all">All Departments</SelectItem>
             {departments.map((dept) => (
               <SelectItem key={dept.id} value={dept.code}>
-                {dept.value1}
+                {dept.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -241,6 +241,7 @@ export default function WatchersPage() {
               <TableHead>Name</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Connection</TableHead>
+              <TableHead>Schedule</TableHead>
               <TableHead>Pattern</TableHead>
               <TableHead>Last Check</TableHead>
               <TableHead>Last Status</TableHead>
@@ -252,13 +253,13 @@ export default function WatchersPage() {
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12">
+                <TableCell colSpan={10} className="text-center py-12">
                   Loading watchers...
                 </TableCell>
               </TableRow>
             ) : filteredWatchers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                   No watchers found. Create your first watcher to get started.
                 </TableCell>
               </TableRow>
@@ -283,6 +284,18 @@ export default function WatchersPage() {
                   </TableCell>
                   <TableCell>
                     {watcher.source_connection?.name || `#${watcher.source_connection_id}`}
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="text-sm font-medium">
+                        {watcher.schedule?.name || `#${watcher.schedule_id}`}
+                      </div>
+                      {watcher.schedule?.frequency_type && (
+                        <div className="text-xs text-muted-foreground">
+                          {watcher.schedule.frequency_type} ({watcher.schedule.interval})
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <code className="text-xs bg-muted px-1.5 py-0.5 rounded">
@@ -334,15 +347,15 @@ export default function WatchersPage() {
                           <DropdownMenuItem
                             onClick={() => handleStatusChange(watcher.id, 'disabled')}
                           >
-                            <Ban className="mr-2 h-4 w-4" />
-                            Disable
+                            <Pause className="mr-2 h-4 w-4" />
+                            Pause
                           </DropdownMenuItem>
                         ) : (
                           <DropdownMenuItem
                             onClick={() => handleStatusChange(watcher.id, 'active')}
                           >
-                            <CheckCircle className="mr-2 h-4 w-4" />
-                            Activate
+                            <Play className="mr-2 h-4 w-4" />
+                            Resume
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />

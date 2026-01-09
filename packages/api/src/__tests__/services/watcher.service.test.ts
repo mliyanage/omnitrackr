@@ -6,6 +6,7 @@ import {
 } from '@omnitrackr/shared';
 import { NotFoundError, ValidationError } from '../../utils/errors';
 import { Watcher, CreateWatcherRequest } from '@omnitrackr/shared';
+import { AuthenticatedRequest } from '../../middleware/auth.middleware';
 
 jest.mock('@omnitrackr/shared', () => ({
   ...jest.requireActual('@omnitrackr/shared'),
@@ -19,6 +20,7 @@ describe('WatcherService', () => {
   let mockWatcherRepo: jest.Mocked<WatcherRepository>;
   let mockConnectionRepo: jest.Mocked<SourceConnectionRepository>;
   let mockScheduleRepo: jest.Mocked<ScheduleRepository>;
+  let mockReq: AuthenticatedRequest;
 
   const mockWatcher: Watcher = {
     id: 1,
@@ -52,6 +54,17 @@ describe('WatcherService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+
+    // Mock AuthenticatedRequest
+    mockReq = {
+      user: {
+        id: 1,
+        email: 'test@example.com',
+        organizationId: 1,
+        role: 'owner',
+        departmentIds: [],
+      },
+    } as unknown as AuthenticatedRequest;
 
     mockWatcherRepo = {
       findById: jest.fn(),
@@ -92,7 +105,7 @@ describe('WatcherService', () => {
 
       mockWatcherRepo.findWithFilters.mockResolvedValue(mockResult);
 
-      const result = await service.getAll(1, 20);
+      const result = await service.getAll(mockReq, 1, 20);
 
       expect(mockWatcherRepo.findWithFilters).toHaveBeenCalled();
       expect(result).toEqual(mockResult);
@@ -131,7 +144,7 @@ describe('WatcherService', () => {
       mockScheduleRepo.findById.mockResolvedValue({ id: 1 } as any);
       mockWatcherRepo.create.mockResolvedValue(mockWatcher);
 
-      const result = await service.create(createRequest, 'user123');
+      const result = await service.create(mockReq, createRequest, 'user123');
 
       expect(mockConnectionRepo.findById).toHaveBeenCalledWith(1);
       expect(mockScheduleRepo.findById).toHaveBeenCalledWith(1);
@@ -142,14 +155,14 @@ describe('WatcherService', () => {
     it('should throw ValidationError if connection not found', async () => {
       mockConnectionRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.create(createRequest, 'user123')).rejects.toThrow(ValidationError);
+      await expect(service.create(mockReq, createRequest, 'user123')).rejects.toThrow(ValidationError);
     });
 
     it('should throw ValidationError if schedule not found', async () => {
       mockConnectionRepo.findById.mockResolvedValue({ id: 1 } as any);
       mockScheduleRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.create(createRequest, 'user123')).rejects.toThrow(ValidationError);
+      await expect(service.create(mockReq, createRequest, 'user123')).rejects.toThrow(ValidationError);
     });
   });
 
@@ -163,7 +176,7 @@ describe('WatcherService', () => {
         ...updates,
       });
 
-      const result = await service.update(1, updates, 'user123');
+      const result = await service.update(mockReq, 1, updates, 'user123');
 
       expect(result.name).toBe('Updated Name');
     });
@@ -178,7 +191,7 @@ describe('WatcherService', () => {
         status: 'paused',
       });
 
-      const result = await service.updateStatus(1, 'paused');
+      const result = await service.updateStatus(mockReq, 1, 'paused');
 
       expect(mockWatcherRepo.updateStatus).toHaveBeenCalledWith(1, 'paused');
       expect(result.status).toBe('paused');
@@ -189,7 +202,7 @@ describe('WatcherService', () => {
     it('should return active watchers', async () => {
       mockWatcherRepo.findActive.mockResolvedValue([mockWatcher]);
 
-      const result = await service.getActive();
+      const result = await service.getActive(mockReq);
 
       expect(mockWatcherRepo.findActive).toHaveBeenCalled();
       expect(result).toEqual([mockWatcher]);

@@ -17,7 +17,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { getDepartments } from '@/api/refData.api';
+import { listDepartments } from '@/api/departments.api';
 
 interface DepartmentComboboxProps {
   value?: string;
@@ -41,23 +41,21 @@ export function DepartmentCombobox({
 
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ['departments'],
-    queryFn: getDepartments,
+    queryFn: listDepartments,
+    select: (response) => response.data || [],
   });
 
   // Only show active departments
-  const activeDepartments = departments.filter(
-    (dept) => (dept.metadata as Record<string, unknown>)?.is_active !== false
-  );
+  const activeDepartments = departments.filter((dept) => dept.status === 'active');
 
   const selectedDepartment = activeDepartments.find((dept) => dept.code === value);
 
   const filteredDepartments = activeDepartments.filter((dept) => {
     const searchLower = searchQuery.toLowerCase();
-    const description = (dept.metadata as Record<string, unknown>)?.description as string || '';
     return (
-      dept.value1?.toLowerCase().includes(searchLower) ||
-      dept.value2?.toLowerCase().includes(searchLower) ||
-      description.toLowerCase().includes(searchLower)
+      dept.name?.toLowerCase().includes(searchLower) ||
+      dept.code?.toLowerCase().includes(searchLower) ||
+      dept.description?.toLowerCase().includes(searchLower)
     );
   });
 
@@ -84,7 +82,7 @@ export function DepartmentCombobox({
           disabled={disabled}
         >
           {selectedDepartment ? (
-            <span className="font-medium">{selectedDepartment.value1}</span>
+            <span className="font-medium">{selectedDepartment.name}</span>
           ) : (
             <span className="text-muted-foreground">{placeholder}</span>
           )}
@@ -111,9 +109,6 @@ export function DepartmentCombobox({
             {filteredDepartments.length > 0 && (
               <CommandGroup heading="Departments">
                 {filteredDepartments.map((department) => {
-                  const description = (department.metadata as Record<string, unknown>)?.description;
-                  const descriptionText = typeof description === 'string' ? description : '';
-
                   return (
                     <CommandItem
                       key={department.id}
@@ -127,10 +122,10 @@ export function DepartmentCombobox({
                         )}
                       />
                       <div>
-                        <div className="font-medium">{department.value1}</div>
-                        {descriptionText && (
+                        <div className="font-medium">{department.name}</div>
+                        {department.description && (
                           <div className="text-xs text-muted-foreground">
-                            {descriptionText}
+                            {department.description}
                           </div>
                         )}
                       </div>

@@ -12,51 +12,45 @@ import {
 } from '@/components/ui/select';
 import { DepartmentTable } from '@/components/departments/DepartmentTable';
 import { DepartmentSheet } from '@/components/departments/DepartmentSheet';
-import {
-  getDepartments,
-  deleteRefData,
-  updateRefData,
-} from '@/api/refData.api';
+import { listDepartments, deleteDepartment, updateDepartment } from '@/api/departments.api';
 import { showSuccess, showError } from '@/lib/toast';
-import type { RefData } from '@/types';
+import { useHasRole } from '@/stores/authStore';
+import type { Department } from '@/types';
 
 export default function DepartmentsPage() {
-  const [selectedDepartment, setSelectedDepartment] = useState<RefData | undefined>();
+  const [selectedDepartment, setSelectedDepartment] = useState<Department | undefined>();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
   const queryClient = useQueryClient();
+  const isOwnerOrAdmin = useHasRole('owner', 'super_admin');
 
+  // Fetch departments
   const { data: departments = [], isLoading } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => getDepartments(),
+    queryFn: listDepartments,
+    select: (response) => response.data || [],
   });
 
+  // Delete mutation
   const deleteMutation = useMutation({
-    mutationFn: deleteRefData,
+    mutationFn: deleteDepartment,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       showSuccess('Department deleted successfully');
     },
-    onError: (error) => {
-      showError(error);
-    },
+    onError: showError,
   });
 
+  // Update mutation (for toggling status)
   const updateMutation = useMutation({
-    mutationFn: ({ code, data }: { code: string; data: { metadata: Record<string, unknown> } }) =>
-      updateRefData(code, data),
-    onSuccess: (_, variables) => {
+    mutationFn: ({ id, data }: { id: number; data: any }) => updateDepartment(id, data),
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
-      const isActive = (variables.data.metadata as { is_active?: boolean })?.is_active;
-      showSuccess(
-        `Department ${isActive ? 'activated' : 'deactivated'} successfully`
-      );
+      showSuccess('Department updated successfully');
     },
-    onError: (error) => {
-      showError(error);
-    },
+    onError: showError,
   });
 
   const handleCreateNew = () => {
@@ -64,26 +58,22 @@ export default function DepartmentsPage() {
     setIsSheetOpen(true);
   };
 
-  const handleEdit = (department: RefData) => {
+  const handleEdit = (department: Department) => {
     setSelectedDepartment(department);
     setIsSheetOpen(true);
   };
 
-  const handleDelete = async (_id: number, code: string) => {
-    await deleteMutation.mutateAsync(code);
+  const handleDelete = async (id: number) => {
+    if (confirm('Are you sure you want to delete this department?')) {
+      await deleteMutation.mutateAsync(id);
+    }
   };
 
-  const handleToggleActive = async (department: RefData) => {
-    const currentMetadata = department.metadata || {};
-    const isCurrentlyActive = (currentMetadata as { is_active?: boolean })?.is_active ?? true;
+  const handleToggleActive = async (department: Department) => {
+    const newStatus = department.status === 'active' ? 'inactive' : 'active';
     await updateMutation.mutateAsync({
-      code: department.code,
-      data: {
-        metadata: {
-          ...currentMetadata,
-          is_active: !isCurrentlyActive,
-        },
-      },
+      id: department.id,
+      data: { status: newStatus },
     });
   };
 
@@ -91,36 +81,29 @@ export default function DepartmentsPage() {
     queryClient.invalidateQueries({ queryKey: ['departments'] });
     setIsSheetOpen(false);
     showSuccess(
-      selectedDepartment
-        ? 'Department updated successfully'
-        : 'Department created successfully'
+      selectedDepartment ? 'Department updated successfully' : 'Department created successfully'
     );
   };
 
   // Filter departments
   const filteredDepartments = departments.filter((department) => {
-    const metadata = department.metadata as { description?: string; is_active?: boolean } | null | undefined;
     const matchesSearch =
       searchQuery === '' ||
-      department.value1?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      department.value2?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      metadata?.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      department.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      department.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      department.description?.toLowerCase().includes(searchQuery.toLowerCase());
 
-    const isActive = metadata?.is_active ?? true;
     const matchesStatus =
       statusFilter === 'all' ||
-      (statusFilter === 'active' && isActive) ||
-      (statusFilter === 'inactive' && !isActive);
+      (statusFilter === 'active' && department.status === 'active') ||
+      (statusFilter === 'inactive' && department.status === 'inactive');
 
     return matchesSearch && matchesStatus;
   });
 
   // Calculate summary stats
   const totalDepartments = departments.length;
-  const activeDepartments = departments.filter((d) => {
-    const metadata = d.metadata as { is_active?: boolean } | null | undefined;
-    return metadata?.is_active ?? true;
-  }).length;
+  const activeDepartments = departments.filter((d) => d.status === 'active').length;
   const inactiveDepartments = totalDepartments - activeDepartments;
 
   return (
@@ -133,10 +116,12 @@ export default function DepartmentsPage() {
             Manage organizational departments and teams
           </p>
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Department
-        </Button>
+        {isOwnerOrAdmin && (
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Department
+          </Button>
+        )}
       </div>
 
       {/* Filters */}

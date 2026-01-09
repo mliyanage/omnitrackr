@@ -5,10 +5,12 @@ import {
   UpdateScheduleRequest,
   CreateScheduleExclusionRequest,
 } from '@omnitrackr/shared';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 /**
  * Schedule Controller
  * Handles HTTP requests for schedule management
+ * Schedules are shared resources across organizations
  */
 export class ScheduleController {
   private service: ScheduleService;
@@ -65,8 +67,9 @@ export class ScheduleController {
    */
   create = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const createRequest: CreateScheduleRequest = req.body;
-      const createdBy = 'system'; // TODO: Get from JWT
+      const createdBy = authReq.user.id.toString();
 
       const schedule = await this.service.create(createRequest, createdBy);
 
@@ -85,9 +88,10 @@ export class ScheduleController {
    */
   update = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const updateRequest: UpdateScheduleRequest = req.body;
-      const updatedBy = 'system'; // TODO: Get from JWT
+      const updatedBy = authReq.user.id.toString();
 
       const schedule = await this.service.update(Number(id), updateRequest, updatedBy);
 
@@ -178,9 +182,10 @@ export class ScheduleController {
    */
   addExclusion = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const exclusionRequest: Omit<CreateScheduleExclusionRequest, 'schedule_id'> = req.body;
-      const createdBy = 'system'; // TODO: Get from JWT
+      const createdBy = authReq.user.id.toString();
 
       const exclusion = await this.service.addExclusion(
         { ...exclusionRequest, schedule_id: Number(id) },

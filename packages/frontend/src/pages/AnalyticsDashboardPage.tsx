@@ -18,7 +18,7 @@ import { TopWatchersTable } from '@/components/dashboard/TopWatchersTable';
 import { DateRangePicker } from '@/components/dashboard/DateRangePicker';
 import { DepartmentMultiSelect } from '@/components/dashboard/DepartmentMultiSelect';
 import { getDashboardSummary } from '@/api/dashboard.api';
-import { getDepartments } from '@/api/refData.api';
+import { listDepartments } from '@/api/departments.api';
 import { getWatchers } from '@/api/watchers.api';
 import { cn } from '@/lib/utils';
 
@@ -68,7 +68,8 @@ export default function AnalyticsDashboardPage() {
   // Fetch departments for filter
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
-    queryFn: getDepartments,
+    queryFn: listDepartments,
+    select: (response) => response.data || [],
   });
 
   // Fetch watchers for filter
@@ -107,7 +108,7 @@ export default function AnalyticsDashboardPage() {
 
   const departmentOptions = departments.map((dept) => ({
     code: dept.code,
-    name: dept.value1 || dept.code,
+    name: dept.name,
   }));
 
   const handleRefresh = () => {

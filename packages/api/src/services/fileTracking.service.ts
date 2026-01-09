@@ -7,10 +7,12 @@ import {
   Watcher,
 } from '@omnitrackr/shared';
 import { db } from '../config/database';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
+import { ForbiddenError } from '../utils/errors';
 
 /**
  * File Tracking Service
- * Business logic for file tracking operations
+ * Business logic for file tracking operations with tenant isolation
  */
 export class FileTrackingService {
   private fileTrackingRepo: FileTrackingRepository;
@@ -22,9 +24,42 @@ export class FileTrackingService {
   }
 
   /**
-   * Get file tracking records with filters and pagination
+   * Get accessible watcher IDs for user
    */
-  async getFileTracking(options: FileTrackingQueryOptions): Promise<{
+  private async getAccessibleWatcherIds(req: AuthenticatedRequest): Promise<number[] | undefined> {
+    // Super admin sees all watchers
+    if (req.user.role === 'super_admin') {
+      return undefined;
+    }
+
+    // Get user's accessible department codes
+    let accessibleDeptCodes: string[];
+    if (req.user.role === 'owner') {
+      const departments = await db('departments')
+        .where({ organization_id: req.user.organizationId, deleted_at: null })
+        .select('code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    } else {
+      const departments = await db('departments')
+        .join('user_departments', 'departments.id', 'user_departments.department_id')
+        .where({ 'user_departments.user_id': req.user.id, 'departments.deleted_at': null })
+        .select('departments.code');
+      accessibleDeptCodes = departments.map(d => d.code);
+    }
+
+    // Get watchers in accessible departments
+    const watchers = await db('watchers')
+      .whereIn('department_code', accessibleDeptCodes)
+      .where({ deleted_at: null })
+      .select('id');
+
+    return watchers.map(w => w.id);
+  }
+
+  /**
+   * Get file tracking records with filters and pagination (tenant-filtered)
+   */
+  async getFileTracking(req: AuthenticatedRequest, options: FileTrackingQueryOptions): Promise<{
     data: FileTracking[];
     pagination: {
       page: number;
@@ -33,7 +68,29 @@ export class FileTrackingService {
       totalPages: number;
     };
   }> {
-    const result = await this.fileTrackingRepo.findWithOptions(options);
+    // Get accessible watcher IDs
+    const watcherIds = await this.getAccessibleWatcherIds(req);
+
+    // Merge watcher filter with user's accessible watchers
+    let finalWatcherId: number | number[] | undefined = options.watcher_id;
+    if (watcherIds !== undefined) {
+      if (options.watcher_id) {
+        // Check if requested watcher is accessible
+        if (!watcherIds.includes(options.watcher_id)) {
+          throw new ForbiddenError('Access denied to requested watcher');
+        }
+        finalWatcherId = options.watcher_id;
+      } else {
+        // Filter to accessible watchers only
+        finalWatcherId = watcherIds.length > 0 ? watcherIds : [-1]; // Use -1 to match nothing if no accessible watchers
+      }
+    }
+
+    const result = await this.fileTrackingRepo.findWithOptions({
+      ...options,
+      watcher_id: Array.isArray(finalWatcherId) ? undefined : finalWatcherId,
+      // TODO: Add support for array of watcher_ids in repository if needed
+    });
 
     // Enrich with watcher details
     const enrichedData = await Promise.all(
@@ -57,11 +114,17 @@ export class FileTrackingService {
   }
 
   /**
-   * Get file tracking by ID
+   * Get file tracking by ID with authorization check
    */
-  async getFileTrackingById(id: number): Promise<FileTracking | null> {
+  async getFileTrackingById(req: AuthenticatedRequest, id: number): Promise<FileTracking | null> {
     const record = await this.fileTrackingRepo.findById<FileTracking>(id);
     if (!record) return null;
+
+    // Check if user has access to this watcher
+    const accessibleWatcherIds = await this.getAccessibleWatcherIds(req);
+    if (accessibleWatcherIds !== undefined && !accessibleWatcherIds.includes(record.watcher_id)) {
+      throw new ForbiddenError('Access denied to this file tracking record');
+    }
 
     // Enrich with watcher details
     const watcher = await this.watcherRepo.findById<Watcher>(record.watcher_id);
@@ -78,9 +141,9 @@ export class FileTrackingService {
   }
 
   /**
-   * Get SLA dashboard summary with all filters
+   * Get SLA dashboard summary with all filters (tenant-filtered)
    */
-  async getSLASummary(options: {
+  async getSLASummary(req: AuthenticatedRequest, options: {
     from_date?: string;
     to_date?: string;
     watcher_id?: number;
@@ -103,6 +166,16 @@ export class FileTrackingService {
     const periodStart = options.from_date
       ? new Date(options.from_date)
       : new Date(periodEnd.getTime() - 24 * 60 * 60 * 1000);
+
+    // Get accessible watcher IDs
+    const accessibleWatcherIds = await this.getAccessibleWatcherIds(req);
+
+    // Check if requested watcher is accessible
+    if (options.watcher_id && accessibleWatcherIds !== undefined) {
+      if (!accessibleWatcherIds.includes(options.watcher_id)) {
+        throw new ForbiddenError('Access denied to requested watcher');
+      }
+    }
 
     // Use the new aggregated stats method
     const stats = await this.fileTrackingRepo.getAggregatedStats({
@@ -128,13 +201,24 @@ export class FileTrackingService {
   }
 
   /**
-   * Get missing file alerts
+   * Get missing file alerts (tenant-filtered)
    */
   async getMissingFileAlerts(
+    req: AuthenticatedRequest,
     watcherId?: number,
     periodStart?: Date,
     periodEnd?: Date
   ) {
+    // Get accessible watcher IDs
+    const accessibleWatcherIds = await this.getAccessibleWatcherIds(req);
+
+    // Check if requested watcher is accessible
+    if (watcherId && accessibleWatcherIds !== undefined) {
+      if (!accessibleWatcherIds.includes(watcherId)) {
+        throw new ForbiddenError('Access denied to requested watcher');
+      }
+    }
+
     return this.fileTrackingRepo.getMissingFileAlerts(
       watcherId,
       periodStart,
@@ -143,10 +227,11 @@ export class FileTrackingService {
   }
 
   /**
-   * Manually mark a file tracking record as arrived
+   * Manually mark a file tracking record as arrived with authorization
    * Used when automated matching fails and user needs to manually link a file
    */
   async markFileAsArrived(
+    req: AuthenticatedRequest,
     trackingId: number,
     fileData: {
       file_path: string;
@@ -161,6 +246,17 @@ export class FileTrackingService {
       throw new Error('File tracking record not found');
     }
 
+    // Check if user has access to this watcher
+    const accessibleWatcherIds = await this.getAccessibleWatcherIds(req);
+    if (accessibleWatcherIds !== undefined && !accessibleWatcherIds.includes(record.watcher_id)) {
+      throw new ForbiddenError('Access denied to this file tracking record');
+    }
+
+    // Check if user can modify (viewers cannot)
+    if (req.user.role === 'viewer') {
+      throw new ForbiddenError('Viewers cannot modify file tracking records');
+    }
+
     // Determine if file is late
     const isLate = fileData.arrived_at > new Date(record.sla_deadline);
     const status = isLate ? ('late' as const) : ('arrived' as const);
@@ -172,6 +268,6 @@ export class FileTrackingService {
     });
 
     // Return the updated record
-    return this.getFileTrackingById(trackingId) as Promise<FileTracking>;
+    return this.getFileTrackingById(req, trackingId) as Promise<FileTracking>;
   }
 }

@@ -106,8 +106,8 @@ describe('DepartmentTable', () => {
   it('displays N/A when abbreviation is missing', () => {
     const deptWithoutAbbrev = createMockDepartment({
       id: 1,
-      value1: 'Test Department',
-      value2: null,
+      name: 'Test Department',
+      code: '',
     });
 
     render(
@@ -125,12 +125,9 @@ describe('DepartmentTable', () => {
   it('displays description from metadata', () => {
     const deptWithDescription = createMockDepartment({
       id: 1,
-      value1: 'Test',
-      metadata: {
-        description: 'This is a test department',
-        is_active: true,
-        sort_order: 1,
-      },
+      name: 'Test',
+      description: 'This is a test department',
+      status: 'active',
     });
 
     render(
@@ -148,11 +145,9 @@ describe('DepartmentTable', () => {
   it('displays dash when description is missing', () => {
     const deptWithoutDescription = createMockDepartment({
       id: 1,
-      value1: 'Test',
-      metadata: {
-        is_active: true,
-        sort_order: 1,
-      },
+      name: 'Test',
+      description: null,
+      status: 'active',
     });
 
     render(
@@ -167,14 +162,12 @@ describe('DepartmentTable', () => {
     expect(screen.getByText('-')).toBeInTheDocument();
   });
 
-  it('displays sort order correctly', () => {
+  it('displays department code correctly', () => {
     const dept = createMockDepartment({
       id: 1,
-      value1: 'Test',
-      metadata: {
-        is_active: true,
-        sort_order: 42,
-      },
+      name: 'Test',
+      code: 'TST',
+      status: 'active',
     });
 
     render(
@@ -186,20 +179,20 @@ describe('DepartmentTable', () => {
       />
     );
 
-    expect(screen.getByText('42')).toBeInTheDocument();
+    expect(screen.getByText('TST')).toBeInTheDocument();
   });
 
   it('renders status badges correctly', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'Active Dept',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'Active Dept',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'Inactive Dept',
-        metadata: { is_active: false, sort_order: 2 },
+        name: 'Inactive Dept',
+        status: 'inactive',
       }),
     ];
 
@@ -218,22 +211,22 @@ describe('DepartmentTable', () => {
     expect(inactiveBadges.length).toBeGreaterThan(0);
   });
 
-  it('sorts departments by sort_order', () => {
+  it('displays department names', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'Third',
-        metadata: { is_active: true, sort_order: 3 },
+        name: 'Third',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'First',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'First',
+        status: 'active',
       }),
       createMockDepartment({
         id: 3,
-        value1: 'Second',
-        metadata: { is_active: true, sort_order: 2 },
+        name: 'Second',
+        status: 'active',
       }),
     ];
 
@@ -282,8 +275,8 @@ describe('DepartmentTable', () => {
     const user = userEvent.setup();
     const activeDept = createMockDepartment({
       id: 1,
-      value1: 'Active',
-      metadata: { is_active: true, sort_order: 1 },
+      name: 'Active',
+      status: 'active',
     });
 
     render(
@@ -305,8 +298,8 @@ describe('DepartmentTable', () => {
     const user = userEvent.setup();
     const inactiveDept = createMockDepartment({
       id: 1,
-      value1: 'Inactive',
-      metadata: { is_active: false, sort_order: 1 },
+      name: 'Inactive',
+      status: 'inactive',
     });
 
     render(
@@ -434,7 +427,7 @@ describe('DepartmentTable', () => {
   it('formats dates correctly', () => {
     const dept = createMockDepartment({
       id: 1,
-      value1: 'Test',
+      name: 'Test',
       created_at: '2024-01-15T10:30:00Z',
     });
 

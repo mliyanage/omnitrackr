@@ -1,9 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import { DashboardService } from '../services/dashboard.service';
+import { AuthenticatedRequest } from '../middleware/auth.middleware';
 
 /**
  * Dashboard Controller
- * Handles HTTP requests for dashboard analytics
+ * Handles HTTP requests for dashboard analytics with tenant isolation
  */
 export class DashboardController {
   private service: DashboardService;
@@ -14,10 +15,11 @@ export class DashboardController {
 
   /**
    * GET /api/dashboard/summary
-   * Get comprehensive dashboard summary with all metrics
+   * Get comprehensive dashboard summary with all metrics (tenant-filtered)
    */
   getSummary = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { from_date, to_date, department_codes, direction, watcher_id } = req.query;
 
       // Validate required params
@@ -38,7 +40,7 @@ export class DashboardController {
         }
       }
 
-      const summary = await this.service.getDashboardSummary({
+      const summary = await this.service.getDashboardSummary(authReq, {
         from_date: from_date as string,
         to_date: to_date as string,
         department_codes: departmentCodesArray,

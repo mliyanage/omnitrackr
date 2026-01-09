@@ -38,7 +38,7 @@ import { ConnectionSheet } from '@/components/connections/ConnectionSheet';
 import { ScheduleSheet } from '@/components/schedules/ScheduleSheet';
 import { DepartmentSheet } from '@/components/departments/DepartmentSheet';
 import { createWatcher, updateWatcher } from '@/api/watchers.api';
-import type { Watcher, SourceConnection, Schedule, RefData } from '@/types';
+import type { Watcher, SourceConnection, Schedule } from '@/types';
 import { showError } from '@/lib/toast';
 
 const watcherFormSchema = z.object({
@@ -154,9 +154,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
     queryClient.invalidateQueries({ queryKey: ['schedules'] });
   };
 
-  const handleDepartmentCreated = (department: RefData) => {
-    form.setValue('department_code', department.code);
+  const handleDepartmentCreated = () => {
     queryClient.invalidateQueries({ queryKey: ['departments'] });
+    // Note: Department will need to be manually selected after creation
   };
 
   const isLoading = createMutation.isPending || updateMutation.isPending;

@@ -299,6 +299,7 @@ export class WatcherRepository extends BaseRepository {
     source_connection_id?: number;
     schedule_id?: number;
     department_code?: string;
+    departmentCodes?: string[];
     status?: WatcherStatus;
     direction?: DirectionType;
     page?: number;
@@ -321,9 +322,13 @@ export class WatcherRepository extends BaseRepository {
       .select(
         `${this.tableName}.*`,
         'source_connections.name as source_connection_name',
-        'source_connections.type as source_connection_type'
+        'source_connections.type as source_connection_type',
+        'schedules.name as schedule_name',
+        'schedules.frequency_type as schedule_frequency_type',
+        'schedules.interval as schedule_interval'
       )
       .leftJoin('source_connections', `${this.tableName}.source_connection_id`, 'source_connections.id')
+      .leftJoin('schedules', `${this.tableName}.schedule_id`, 'schedules.id')
       .where({ [`${this.tableName}.deleted_at`]: null });
 
     // Apply filters
@@ -335,6 +340,10 @@ export class WatcherRepository extends BaseRepository {
     }
     if (options.department_code) {
       query = query.where({ [`${this.tableName}.department_code`]: options.department_code });
+    }
+    // Organization filtering via department codes
+    if (options.departmentCodes && options.departmentCodes.length > 0) {
+      query = query.whereIn(`${this.tableName}.department_code`, options.departmentCodes);
     }
     if (options.status) {
       query = query.where({ [`${this.tableName}.status`]: options.status });
@@ -354,9 +363,16 @@ export class WatcherRepository extends BaseRepository {
       .limit(limit)
       .offset(offset);
 
-    // Transform data to include source_connection object
+    // Transform data to include source_connection and schedule objects
     const transformedData = data.map((row) => {
-      const { source_connection_name, source_connection_type, ...watcher } = row;
+      const {
+        source_connection_name,
+        source_connection_type,
+        schedule_name,
+        schedule_frequency_type,
+        schedule_interval,
+        ...watcher
+      } = row;
       return {
         ...watcher,
         source_connection: source_connection_name
@@ -364,6 +380,14 @@ export class WatcherRepository extends BaseRepository {
               id: watcher.source_connection_id,
               name: source_connection_name,
               type: source_connection_type,
+            }
+          : null,
+        schedule: schedule_name
+          ? {
+              id: watcher.schedule_id,
+              name: schedule_name,
+              frequency_type: schedule_frequency_type,
+              interval: schedule_interval,
             }
           : null,
       };

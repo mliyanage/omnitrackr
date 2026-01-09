@@ -42,7 +42,7 @@ export function getWatcherStatusBadge(status: string | undefined): BadgeConfig {
     case 'paused':
       return { variant: 'warning', label: 'Paused' };
     case 'disabled':
-      return { variant: 'secondary', label: 'Disabled' };
+      return { variant: 'secondary', label: 'Paused' };
     case 'error':
       return { variant: 'destructive', label: 'Error' };
     default:

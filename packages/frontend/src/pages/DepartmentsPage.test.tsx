@@ -121,13 +121,13 @@ describe('DepartmentsPage', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'Active Dept',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'Active Dept',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'Inactive Dept',
-        metadata: { is_active: false, sort_order: 2 },
+        name: 'Inactive Dept',
+        status: 'inactive',
       }),
     ];
     vi.mocked(refDataApi.getDepartments).mockResolvedValue(departments);
@@ -147,18 +147,18 @@ describe('DepartmentsPage', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'Dept 1',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'Dept 1',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'Dept 2',
-        metadata: { is_active: true, sort_order: 2 },
+        name: 'Dept 2',
+        status: 'active',
       }),
       createMockDepartment({
         id: 3,
-        value1: 'Dept 3',
-        metadata: { is_active: false, sort_order: 3 },
+        name: 'Dept 3',
+        status: 'inactive',
       }),
     ];
     vi.mocked(refDataApi.getDepartments).mockResolvedValue(departments);
@@ -276,9 +276,7 @@ describe('DepartmentsPage', () => {
       expect(refDataApi.updateRefData).toHaveBeenCalledWith(
         mockDepartments[0].code,
         expect.objectContaining({
-          metadata: expect.objectContaining({
-            is_active: false,
-          }),
+          status: 'inactive',
         })
       );
     });
@@ -288,13 +286,13 @@ describe('DepartmentsPage', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'Active Department',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'Active Department',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'Inactive Department',
-        metadata: { is_active: false, sort_order: 2 },
+        name: 'Inactive Department',
+        status: 'inactive',
       }),
     ];
     vi.mocked(refDataApi.getDepartments).mockResolvedValue(departments);
@@ -311,18 +309,18 @@ describe('DepartmentsPage', () => {
     const departments = [
       createMockDepartment({
         id: 1,
-        value1: 'D1',
-        metadata: { is_active: true, sort_order: 1 },
+        name: 'D1',
+        status: 'active',
       }),
       createMockDepartment({
         id: 2,
-        value1: 'D2',
-        metadata: { is_active: false, sort_order: 2 },
+        name: 'D2',
+        status: 'inactive',
       }),
       createMockDepartment({
         id: 3,
-        value1: 'D3',
-        metadata: { is_active: false, sort_order: 3 },
+        name: 'D3',
+        status: 'inactive',
       }),
     ];
     vi.mocked(refDataApi.getDepartments).mockResolvedValue(departments);
