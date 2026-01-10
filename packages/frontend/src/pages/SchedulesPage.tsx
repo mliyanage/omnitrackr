@@ -18,9 +18,11 @@ import {
   updateSchedule,
 } from '@/api/schedules.api';
 import { showSuccess, showError } from '@/lib/toast';
+import { useAuthStore } from '@/stores/authStore';
 import type { Schedule } from '@/types';
 
 export default function SchedulesPage() {
+  const isViewer = useAuthStore((state) => state.isViewer());
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | undefined>();
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -126,10 +128,12 @@ export default function SchedulesPage() {
             Manage your polling schedules and execution times
           </p>
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Schedule
-        </Button>
+        {!isViewer && (
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Schedule
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -175,6 +179,7 @@ export default function SchedulesPage() {
         onDelete={handleDelete}
         onToggleEnabled={handleToggleEnabled}
         isLoading={isLoading}
+        isViewer={isViewer}
       />
 
       {/* Summary Stats */}

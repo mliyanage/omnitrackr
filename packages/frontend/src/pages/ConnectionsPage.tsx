@@ -19,9 +19,11 @@ import {
   checkConnectionHealth,
 } from '@/api/connections.api';
 import { showSuccess, showError } from '@/lib/toast';
+import { useAuthStore } from '@/stores/authStore';
 import type { SourceConnection } from '@/types';
 
 export default function ConnectionsPage() {
+  const isViewer = useAuthStore((state) => state.isViewer());
   const [selectedConnection, setSelectedConnection] = useState<
     SourceConnection | undefined
   >();
@@ -131,10 +133,12 @@ export default function ConnectionsPage() {
             Manage your data source connections
           </p>
         </div>
-        <Button onClick={handleCreateNew}>
-          <Plus className="mr-2 h-4 w-4" />
-          Create Connection
-        </Button>
+        {!isViewer && (
+          <Button onClick={handleCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Create Connection
+          </Button>
+        )}
       </div>
 
       {/* Filters */}
@@ -182,6 +186,7 @@ export default function ConnectionsPage() {
         onTestConnection={handleTestConnection}
         onViewHealth={handleViewHealth}
         isLoading={isLoading}
+        isViewer={isViewer}
       />
 
       {/* Summary Stats */}

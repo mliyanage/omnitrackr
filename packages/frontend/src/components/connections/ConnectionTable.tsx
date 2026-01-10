@@ -39,6 +39,7 @@ interface ConnectionTableProps {
   onTestConnection: (connection: SourceConnection) => void;
   onViewHealth: (connection: SourceConnection) => void;
   isLoading?: boolean;
+  isViewer?: boolean;
 }
 
 export function ConnectionTable({
@@ -48,6 +49,7 @@ export function ConnectionTable({
   onTestConnection,
   onViewHealth,
   isLoading = false,
+  isViewer = false,
 }: ConnectionTableProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [connectionToDelete, setConnectionToDelete] = useState<{
@@ -188,26 +190,30 @@ export function ConnectionTable({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      <DropdownMenuItem onClick={() => onTestConnection(connection)}>
-                        <FlaskConical className="mr-2 h-4 w-4" />
-                        Test Connection
-                      </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => onViewHealth(connection)}>
                         <Activity className="mr-2 h-4 w-4" />
                         View Health Details
                       </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                      <DropdownMenuItem onClick={() => onEdit(connection)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(connection.id, connection.name)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
+                      {!isViewer && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem onClick={() => onTestConnection(connection)}>
+                            <FlaskConical className="mr-2 h-4 w-4" />
+                            Test Connection
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => onEdit(connection)}>
+                            <Pencil className="mr-2 h-4 w-4" />
+                            Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => handleDeleteClick(connection.id, connection.name)}
+                            className="text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                          </DropdownMenuItem>
+                        </>
+                      )}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </TableCell>

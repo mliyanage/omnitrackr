@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { scheduleController } from '../controllers/schedule.controller';
+import { requireEditor } from '../middleware/authorization.middleware';
 
 const router = Router();
 
@@ -27,30 +28,30 @@ router.get('/:id', scheduleController.getById);
 /**
  * @route   POST /api/schedules
  * @desc    Create a new schedule
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.post('/', scheduleController.create);
+router.post('/', requireEditor(), scheduleController.create);
 
 /**
  * @route   PATCH /api/schedules/:id
  * @desc    Update a schedule
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.patch('/:id', scheduleController.update);
+router.patch('/:id', requireEditor(), scheduleController.update);
 
 /**
  * @route   DELETE /api/schedules/:id
  * @desc    Delete a schedule (soft delete)
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.delete('/:id', scheduleController.delete);
+router.delete('/:id', requireEditor(), scheduleController.delete);
 
 /**
  * @route   PATCH /api/schedules/:id/toggle
  * @desc    Enable/disable a schedule
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.patch('/:id/toggle', scheduleController.toggleEnabled);
+router.patch('/:id/toggle', requireEditor(), scheduleController.toggleEnabled);
 
 // Exclusion routes
 
@@ -64,15 +65,15 @@ router.get('/:id/exclusions', scheduleController.getExclusions);
 /**
  * @route   POST /api/schedules/:id/exclusions
  * @desc    Add an exclusion to a schedule
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.post('/:id/exclusions', scheduleController.addExclusion);
+router.post('/:id/exclusions', requireEditor(), scheduleController.addExclusion);
 
 /**
  * @route   DELETE /api/schedules/exclusions/:exclusionId
  * @desc    Delete an exclusion
- * @access  Private
+ * @access  Private (Owner, Editor only)
  */
-router.delete('/exclusions/:exclusionId', scheduleController.deleteExclusion);
+router.delete('/exclusions/:exclusionId', requireEditor(), scheduleController.deleteExclusion);
 
 export default router;

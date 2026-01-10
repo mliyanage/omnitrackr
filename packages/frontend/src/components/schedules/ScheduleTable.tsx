@@ -36,6 +36,7 @@ interface ScheduleTableProps {
   onToggleEnabled: (schedule: Schedule) => void;
   onCalculateNextRun?: (schedule: Schedule) => void;
   isLoading?: boolean;
+  isViewer?: boolean;
 }
 
 export function ScheduleTable({
@@ -45,6 +46,7 @@ export function ScheduleTable({
   onToggleEnabled,
   onCalculateNextRun,
   isLoading = false,
+  isViewer = false,
 }: ScheduleTableProps) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<{
@@ -166,51 +168,53 @@ export function ScheduleTable({
                   </span>
                 </TableCell>
                 <TableCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                      {onCalculateNextRun && (
-                        <>
-                          <DropdownMenuItem
-                            onClick={() => onCalculateNextRun(schedule)}
-                          >
-                            <Clock className="mr-2 h-4 w-4" />
-                            Calculate Next Run
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                        </>
-                      )}
-                      <DropdownMenuItem onClick={() => onToggleEnabled(schedule)}>
-                        {schedule.enabled ? (
+                  {!isViewer && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        {onCalculateNextRun && (
                           <>
-                            <ToggleLeft className="mr-2 h-4 w-4" />
-                            Disable
-                          </>
-                        ) : (
-                          <>
-                            <ToggleRight className="mr-2 h-4 w-4" />
-                            Enable
+                            <DropdownMenuItem
+                              onClick={() => onCalculateNextRun(schedule)}
+                            >
+                              <Clock className="mr-2 h-4 w-4" />
+                              Calculate Next Run
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                           </>
                         )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => onEdit(schedule)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDeleteClick(schedule.id, schedule.name)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                        <DropdownMenuItem onClick={() => onToggleEnabled(schedule)}>
+                          {schedule.enabled ? (
+                            <>
+                              <ToggleLeft className="mr-2 h-4 w-4" />
+                              Disable
+                            </>
+                          ) : (
+                            <>
+                              <ToggleRight className="mr-2 h-4 w-4" />
+                              Enable
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onEdit(schedule)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDeleteClick(schedule.id, schedule.name)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
                 </TableCell>
               </TableRow>
             ))
