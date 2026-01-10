@@ -46,7 +46,7 @@ const watcherFormSchema = z.object({
   description: z.string().optional(),
   source_connection_id: z.number().min(1, 'Connection is required'),
   schedule_id: z.number().min(1, 'Schedule is required'),
-  department_code: z.string().optional(),
+  department_code: z.string().min(1, 'Department is required'),
   file_name_pattern: z.string().optional(),
   file_path_pattern: z.string().optional(),
   match_rule: z.enum(['exact', 'partial', 'regex']),
@@ -252,7 +252,9 @@ export function WatcherForm({ watcher, onSuccess, onCancel }: WatcherFormProps) 
                 name="department_code"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Department</FormLabel>
+                    <FormLabel>
+                      Department <span className="text-destructive">*</span>
+                    </FormLabel>
                     <FormControl>
                       <DepartmentCombobox
                         value={field.value || undefined}

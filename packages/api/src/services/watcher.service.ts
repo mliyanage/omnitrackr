@@ -189,26 +189,29 @@ export class WatcherService {
       throw new ForbiddenError('Viewers do not have permission to create watchers');
     }
 
-    // Validate department access
-    if (request.department_code) {
-      const department = await db('departments')
-        .where({ code: request.department_code, deleted_at: null })
-        .first();
+    // Department is required
+    if (!request.department_code) {
+      throw new ValidationError('Department is required');
+    }
 
-      if (!department) {
-        throw new ValidationError(`Department ${request.department_code} not found`);
-      }
+    // Validate department and get org/dept IDs
+    const department = await db('departments')
+      .where({ code: request.department_code, deleted_at: null })
+      .first();
 
-      // Check organization match
-      if (req.user.role !== 'super_admin' && department.organization_id !== req.user.organizationId) {
-        throw new ForbiddenError('Cannot create watcher in a different organization');
-      }
+    if (!department) {
+      throw new ValidationError(`Department ${request.department_code} not found`);
+    }
 
-      // Check department access for editors/viewers
-      if (!['owner', 'super_admin'].includes(req.user.role)) {
-        if (!req.user.departmentIds.includes(department.id)) {
-          throw new ForbiddenError('You do not have access to this department');
-        }
+    // Check organization match
+    if (req.user.role !== 'super_admin' && department.organization_id !== req.user.organizationId) {
+      throw new ForbiddenError('Cannot create watcher in a different organization');
+    }
+
+    // Check department access for editors/viewers
+    if (!['owner', 'super_admin'].includes(req.user.role)) {
+      if (!req.user.departmentIds.includes(department.id)) {
+        throw new ForbiddenError('You do not have access to this department');
       }
     }
 
@@ -234,6 +237,8 @@ export class WatcherService {
       return this.watcherRepo.restore(deletedWatcher.id, {
         source_connection_id: request.source_connection_id,
         schedule_id: request.schedule_id,
+        organization_id: department.organization_id,
+        department_id: department.id,
         department_code: request.department_code,
         description: request.description,
         file_name_pattern: request.file_name_pattern,
@@ -252,6 +257,8 @@ export class WatcherService {
     return this.watcherRepo.create<Watcher>({
       source_connection_id: request.source_connection_id,
       schedule_id: request.schedule_id,
+      organization_id: department.organization_id,
+      department_id: department.id,
       department_code: request.department_code,
       name: request.name,
       description: request.description,
