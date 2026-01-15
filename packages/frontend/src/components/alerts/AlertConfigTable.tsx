@@ -28,6 +28,10 @@ interface AlertConfigTableProps {
 }
 
 const alertTypeLabels: Record<AlertType, string> = {
+  missing_file: 'Missing File',
+  late_arrival: 'Late Arrival',
+  sla_violation: 'SLA Violation',
+  pattern_mismatch: 'Pattern Mismatch',
   sla_breached: 'SLA Breached',
   sla_at_risk: 'SLA At Risk',
   file_arrived: 'File Arrived',

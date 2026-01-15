@@ -96,6 +96,8 @@ export default function AcceptInvitationPage() {
       const response = await acceptInvitation({
         token,
         password: values.password,
+        firstName: inviteeFirstName,
+        lastName: inviteeLastName,
       });
 
       if (!response.data) {

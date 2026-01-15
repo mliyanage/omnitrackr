@@ -23,7 +23,7 @@ export type PollStatus = 'success' | 'failed' | 'in_progress' | 'skipped';
 export type TriggerType = 'scheduled' | 'manual' | 'api' | 'retry';
 
 export type TrackingStatus = 'pending' | 'arrived' | 'late' | 'missing';
-export type AlertType = 'missing_file' | 'late_arrival' | 'sla_violation' | 'pattern_mismatch';
+export type AlertType = 'missing_file' | 'late_arrival' | 'sla_violation' | 'pattern_mismatch' | 'sla_breached' | 'sla_at_risk' | 'file_arrived' | 'file_arrived_late';
 
 // ============================================================================
 // Source Connection Types
@@ -405,6 +405,16 @@ export interface CreateRefDataRequest {
   value4?: string;
   value5?: string;
   metadata?: Record<string, unknown>;
+}
+
+// ============================================================================
+// UI Component Types
+// ============================================================================
+
+export interface WatcherOption {
+  id: number;
+  name: string;
+  department_code?: string | null;
 }
 
 // ============================================================================

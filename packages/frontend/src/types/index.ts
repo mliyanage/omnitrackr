@@ -28,8 +28,26 @@ export * from './watcher.types';
 // Export authentication and user management types
 export * from './auth.types';
 
-// Export alert types
-export * from './alert.types';
+// Export alert types (excluding AlertType to avoid conflicts)
+export type { 
+  DeliveryStatus,
+  ChannelType,
+  AlertConfig,
+  CreateAlertConfigRequest,
+  UpdateAlertConfigRequest,
+  AlertRecipientGroup,
+  CreateRecipientGroupRequest,
+  UpdateRecipientGroupRequest,
+  AlertEscalation,
+  CreateEscalationRequest,
+  UpdateEscalationRequest,
+  AlertHistory,
+  AlertHistoryQueryOptions,
+  PaginatedAlertHistoryResponse,
+  AlertComment,
+  CreateAlertCommentRequest,
+  AlertDashboardStats
+} from './alert.types';
 
 export type FileSourceType = 'S3' | 'AZURE_BLOB' | 'GCS' | 'SFTP' | 'FTP' | 'FTPS' | 'SHAREPOINT' | 'REST_API' | 'DATABASE' | 'FILE_SHARE';
 export type FileSourceStatus = 'active' | 'failed' | 'pending' | 'disabled';

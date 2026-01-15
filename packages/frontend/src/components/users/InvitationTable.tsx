@@ -41,15 +41,6 @@ export function InvitationTable({
     email: string;
   } | null>(null);
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  };
 
   const getRoleBadgeVariant = (role: string) => {
     switch (role) {

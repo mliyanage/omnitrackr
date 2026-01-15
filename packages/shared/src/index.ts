@@ -9,6 +9,9 @@ export * from './types';
 // Export repositories
 export * from './repositories';
 
+// Export services
+export * from './services';
+
 // Export utilities (TODO: Add later)
 // export * from './utils';
 

@@ -14,13 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { WatcherCombobox } from '@/components/ui/watcher-combobox';
 import { X, Plus, Trash2 } from 'lucide-react';
 import {
@@ -28,13 +21,10 @@ import {
   updateAlertConfig,
   deleteAlertConfig,
   getEscalations,
-  createEscalation,
-  updateEscalation,
-  deleteEscalation,
 } from '@/api/alerts.api';
 import { getWatchers } from '@/api/watchers.api';
 import { showSuccess, showError } from '@/lib/toast';
-import type { AlertConfig, AlertRecipientGroup, AlertType, AlertEscalation } from '@/types';
+import type { AlertConfig, AlertRecipientGroup, AlertType } from '@/types';
 
 interface AlertConfigSheetProps {
   open: boolean;
@@ -264,7 +254,11 @@ export function AlertConfigSheet({
                 Watcher <span className="text-destructive">*</span>
               </Label>
               <WatcherCombobox
-                watchers={watchers}
+                watchers={watchers.map(w => ({
+                  id: w.id,
+                  name: w.name,
+                  department_code: w.department_code || undefined
+                }))}
                 value={watcherId?.toString() || ''}
                 onValueChange={(value) => setWatcherId(Number(value))}
                 placeholder="Select a watcher"

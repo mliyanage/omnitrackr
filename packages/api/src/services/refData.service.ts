@@ -138,4 +138,11 @@ export class RefDataService {
   async search(searchTerm: string): Promise<RefData[]> {
     return this.repo.searchByValue(searchTerm);
   }
+
+  /**
+   * Get all departments
+   */
+  async getDepartments(): Promise<RefData[]> {
+    return this.repo.findByPrefix('DEPT');
+  }
 }

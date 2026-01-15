@@ -1,7 +1,6 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import type { ApiResponse, RefreshTokenResponse } from '../types';
-import { queryClient } from '@/lib/queryClient';
 
 const API_URL = import.meta.env.VITE_API_URL;
 

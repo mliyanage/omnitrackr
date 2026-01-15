@@ -30,10 +30,14 @@ interface AlertHistoryTableProps {
 }
 
 const alertTypeStyles: Record<AlertType, { label: string; variant: 'default' | 'destructive' | 'secondary' | 'outline' }> = {
+  missing_file: { label: 'Missing File', variant: 'destructive' },
+  late_arrival: { label: 'Late Arrival', variant: 'outline' },
+  sla_violation: { label: 'SLA Violation', variant: 'destructive' },
+  pattern_mismatch: { label: 'Pattern Mismatch', variant: 'outline' },
   sla_breached: { label: 'SLA Breached', variant: 'destructive' },
   sla_at_risk: { label: 'SLA At Risk', variant: 'default' },
   file_arrived: { label: 'File Arrived', variant: 'secondary' },
-  file_arrived_late: { label: 'Arrived Late', variant: 'outline' },
+  file_arrived_late: { label: 'File Arrived Late', variant: 'outline' },
 };
 
 const deliveryStatusStyles: Record<DeliveryStatus, { label: string; className: string }> = {

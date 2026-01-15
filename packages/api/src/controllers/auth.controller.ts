@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
-import { EmailService } from '../services/email.service';
+import { EmailService } from '@omnitrackr/shared';
 import { AuthenticatedRequest } from '../middleware/auth.middleware';
 import { ValidationError } from '../utils/errors';
 import { db } from '../config/database';

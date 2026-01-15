@@ -2,11 +2,13 @@
  * Type definitions for SLA breach alerting system
  */
 
+import type { AlertType } from './watcher.types';
+
 // ============================================================================
 // Enums and Constants
 // ============================================================================
 
-export type AlertType = 'sla_breached' | 'sla_at_risk' | 'file_arrived' | 'file_arrived_late';
+// AlertType is now imported from watcher.types.ts
 export type DeliveryStatus = 'pending' | 'processing' | 'delivered' | 'failed' | 'partially_delivered';
 export type ChannelType = 'email' | 'slack' | 'teams' | 'jira' | 'sms' | 'servicenow';
 

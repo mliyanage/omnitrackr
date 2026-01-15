@@ -16,6 +16,7 @@ describe('ScheduleService', () => {
 
   const mockSchedule: Schedule = {
     id: 1,
+    organization_id: 1,
     name: 'Every 15 minutes',
     description: 'Test schedule',
     frequency_type: 'minutely',
@@ -70,7 +71,7 @@ describe('ScheduleService', () => {
 
       mockScheduleRepo.findWithFilters.mockResolvedValue(mockResult);
 
-      const result = await service.getAll(1, 20);
+      const result = await service.getAll(1, 1, 20);
 
       expect(mockScheduleRepo.findWithFilters).toHaveBeenCalled();
       expect(result).toEqual(mockResult);
@@ -81,7 +82,7 @@ describe('ScheduleService', () => {
     it('should return schedule when found', async () => {
       mockScheduleRepo.findById.mockResolvedValue(mockSchedule);
 
-      const result = await service.getById(1);
+      const result = await service.getById(1, 1);
 
       expect(result).toEqual(mockSchedule);
     });
@@ -89,7 +90,7 @@ describe('ScheduleService', () => {
     it('should throw NotFoundError when not found', async () => {
       mockScheduleRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.getById(999)).rejects.toThrow(NotFoundError);
+      await expect(service.getById(999, 1)).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -106,7 +107,7 @@ describe('ScheduleService', () => {
     it('should create schedule', async () => {
       mockScheduleRepo.create.mockResolvedValue(mockSchedule);
 
-      const result = await service.create(createRequest, 'user123');
+      const result = await service.create(1, createRequest, 'user123');
 
       expect(mockScheduleRepo.create).toHaveBeenCalled();
       expect(result).toEqual(mockSchedule);
@@ -123,7 +124,7 @@ describe('ScheduleService', () => {
         ...updates,
       });
 
-      const result = await service.update(1, updates, 'user123');
+      const result = await service.update(1, 1, updates, 'user123');
 
       expect(result.name).toBe('Updated Name');
     });
@@ -137,7 +138,7 @@ describe('ScheduleService', () => {
         enabled: false,
       });
 
-      const result = await service.toggleEnabled(1, false);
+      const result = await service.toggleEnabled(1, 1, false);
 
       expect(mockScheduleRepo.update).toHaveBeenCalledWith(1, { enabled: false });
       expect(result.enabled).toBe(false);
@@ -148,7 +149,7 @@ describe('ScheduleService', () => {
     it('should return active schedules', async () => {
       mockScheduleRepo.findActive.mockResolvedValue([mockSchedule]);
 
-      const result = await service.getActive();
+      const result = await service.getActive(1);
 
       expect(mockScheduleRepo.findActive).toHaveBeenCalled();
       expect(result).toEqual([mockSchedule]);

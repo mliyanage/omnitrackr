@@ -30,7 +30,7 @@ export const getWatchers = async (params?: {
  * Get a single watcher by ID
  */
 export const getWatcherById = async (id: number): Promise<Watcher> => {
-  const response = await apiClient.get<ApiResponse<Watcher>>(`/api/watchers/${id}`);
+  const response = await apiClient.get<ApiResponse<Watcher>>(`/watchers/${id}`);
   if (!response.data.data) {
     throw new Error('Watcher not found');
   }
@@ -61,7 +61,7 @@ export const updateWatcher = async (
   data: UpdateWatcherRequest
 ): Promise<Watcher> => {
   const response = await apiClient.patch<ApiResponse<Watcher>>(
-    `/api/watchers/${id}`,
+    `/watchers/${id}`,
     data
   );
   if (!response.data.data) {
@@ -74,7 +74,7 @@ export const updateWatcher = async (
  * Delete a watcher
  */
 export const deleteWatcher = async (id: number): Promise<void> => {
-  await apiClient.delete(`/api/watchers/${id}`);
+  await apiClient.delete(`/watchers/${id}`);
 };
 
 /**
@@ -87,7 +87,7 @@ export const triggerWatcherPoll = async (id: number): Promise<{
   const response = await apiClient.post<ApiResponse<{
     success: boolean;
     message: string;
-  }>>(`/api/watchers/${id}/poll`);
+  }>>(`/watchers/${id}/poll`);
   if (!response.data.data) {
     throw new Error('Failed to trigger poll');
   }
@@ -102,7 +102,7 @@ export const updateWatcherStatus = async (
   status: 'active' | 'paused' | 'disabled' | 'error'
 ): Promise<Watcher> => {
   const response = await apiClient.patch<ApiResponse<Watcher>>(
-    `/api/watchers/${id}/status`,
+    `/watchers/${id}/status`,
     { status }
   );
   if (!response.data.data) {
@@ -123,7 +123,7 @@ export const getWatcherLogs = async (
   filters?: WatcherLogFilters
 ): Promise<WatcherLog[]> => {
   const response = await apiClient.get<ApiResponse<WatcherLog[]>>(
-    `/api/watchers/${watcherId}/logs`,
+    `/watchers/${watcherId}/logs`,
     { params: filters }
   );
   return response.data.data || [];
@@ -137,7 +137,7 @@ export const getWatcherLogById = async (
   logId: number
 ): Promise<WatcherLog> => {
   const response = await apiClient.get<ApiResponse<WatcherLog>>(
-    `/api/watchers/${watcherId}/logs/${logId}`
+    `/watchers/${watcherId}/logs/${logId}`
   );
   if (!response.data.data) {
     throw new Error('Log entry not found');
@@ -157,7 +157,7 @@ export const getWatcherFileTracking = async (
   filters?: FileTrackingFilters
 ): Promise<FileTracking[]> => {
   const response = await apiClient.get<ApiResponse<FileTracking[]>>(
-    `/api/watchers/${watcherId}/file-tracking`,
+    `/watchers/${watcherId}/file-tracking`,
     { params: filters }
   );
   return response.data.data || [];
@@ -227,7 +227,7 @@ export type S3File = {
  */
 export const getWatcherFiles = async (watcherId: number): Promise<S3File[]> => {
   const response = await apiClient.get<ApiResponse<S3File[]>>(
-    `/api/watchers/${watcherId}/files`
+    `/watchers/${watcherId}/files`
   );
   return response.data.data || [];
 };

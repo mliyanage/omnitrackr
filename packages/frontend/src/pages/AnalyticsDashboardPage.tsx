@@ -163,7 +163,11 @@ export default function AnalyticsDashboardPage() {
 
         {/* Watcher Filter */}
         <WatcherCombobox
-          watchers={watchers}
+          watchers={watchers.map(w => ({
+            id: w.id,
+            name: w.name,
+            department_code: w.department_code || undefined
+          }))}
           value={watcherFilter}
           onValueChange={setWatcherFilter}
         />

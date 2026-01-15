@@ -42,7 +42,7 @@ export default function AlertsPage() {
     queryFn: () => getAlertHistory({ page: 1, limit: 50 }),
   });
 
-  const { data: stats, isLoading: isLoadingStats } = useQuery({
+  const { data: stats } = useQuery({
     queryKey: ['alertStats'],
     queryFn: () => getAlertStats(),
   });

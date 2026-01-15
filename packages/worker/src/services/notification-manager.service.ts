@@ -8,7 +8,7 @@ import {
   AlertHistory,
   DeliveryStatus,
 } from '@omnitrackr/shared';
-import { EmailService } from '../../../api/src/services/email.service';
+import { EmailService } from '@omnitrackr/shared';
 
 /**
  * Notification Manager Service

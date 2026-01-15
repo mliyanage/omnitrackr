@@ -20,7 +20,7 @@ import {
 } from '../utils/token.utils';
 import { ValidationError, NotFoundError, UnauthorizedError } from '../utils/errors';
 import { db } from '../config/database';
-import { EmailService } from './email.service';
+import { EmailService } from '@omnitrackr/shared';
 import { AuthService } from './auth.service';
 
 export interface InviteUserRequest {

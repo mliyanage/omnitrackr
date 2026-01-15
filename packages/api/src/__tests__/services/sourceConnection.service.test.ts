@@ -22,6 +22,7 @@ describe('SourceConnectionService', () => {
 
   const mockConnection: SourceConnection = {
     id: 1,
+    organization_id: 1,
     name: 'Test S3 Connection',
     type: 'S3',
     description: 'Test connection',
@@ -79,11 +80,12 @@ describe('SourceConnectionService', () => {
 
       mockRepo.findWithFilters.mockResolvedValue(mockResult);
 
-      const result = await service.getAll(1, 20);
+      const result = await service.getAll(1, 1, 20);
 
       expect(mockRepo.findWithFilters).toHaveBeenCalledWith({
         page: 1,
         limit: 20,
+        organization_id: 1,
       });
       expect(result).toEqual(mockResult);
     });
@@ -96,7 +98,7 @@ describe('SourceConnectionService', () => {
 
       mockRepo.findWithFilters.mockResolvedValue(mockResult);
 
-      await service.getAll(1, 20, {
+      await service.getAll(1, 1, 20, {
         type: 'S3',
         connection_status: 'healthy',
       });
@@ -104,6 +106,7 @@ describe('SourceConnectionService', () => {
       expect(mockRepo.findWithFilters).toHaveBeenCalledWith({
         page: 1,
         limit: 20,
+        organization_id: 1,
         type: 'S3',
         connection_status: 'healthy',
       });
@@ -114,7 +117,7 @@ describe('SourceConnectionService', () => {
     it('should return connection when found', async () => {
       mockRepo.findById.mockResolvedValue(mockConnection);
 
-      const result = await service.getById(1);
+      const result = await service.getById(1, 1);
 
       expect(mockRepo.findById).toHaveBeenCalledWith(1);
       expect(result).toEqual(mockConnection);
@@ -123,7 +126,7 @@ describe('SourceConnectionService', () => {
     it('should throw NotFoundError when not found', async () => {
       mockRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.getById(999)).rejects.toThrow(NotFoundError);
+      await expect(service.getById(999, 1)).rejects.toThrow(NotFoundError);
     });
 
     it('should throw NotFoundError when deleted', async () => {
@@ -132,7 +135,7 @@ describe('SourceConnectionService', () => {
         deleted_at: new Date(),
       });
 
-      await expect(service.getById(1)).rejects.toThrow(NotFoundError);
+      await expect(service.getById(1, 1)).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -184,7 +187,7 @@ describe('SourceConnectionService', () => {
     it('should create connection after successful test', async () => {
       mockRepo.create.mockResolvedValue(mockConnection);
 
-      const result = await service.create(createRequest, 'user123');
+      const result = await service.create(1, createRequest, 'user123');
 
       expect(mockRepo.create).toHaveBeenCalled();
       expect(result).toEqual(mockConnection);
@@ -210,7 +213,7 @@ describe('SourceConnectionService', () => {
       mockRepo.update.mockResolvedValue(updatedConnection);
       mockRepo.updateHealthStatus.mockResolvedValue(undefined);
 
-      const result = await service.update(1, updates, 'user123');
+      const result = await service.update(1, 1, updates, 'user123');
 
       expect(mockRepo.findById).toHaveBeenCalledWith(1);
       expect(mockRepo.update).toHaveBeenCalled();
@@ -220,7 +223,7 @@ describe('SourceConnectionService', () => {
     it('should throw NotFoundError if connection does not exist', async () => {
       mockRepo.findById.mockResolvedValue(undefined);
 
-      await expect(service.update(999, { name: 'New' })).rejects.toThrow(NotFoundError);
+      await expect(service.update(1, 999, { name: 'New' }, 'user123')).rejects.toThrow(NotFoundError);
     });
   });
 
@@ -229,7 +232,7 @@ describe('SourceConnectionService', () => {
       mockRepo.findById.mockResolvedValue(mockConnection);
       mockRepo.softDelete.mockResolvedValue(undefined);
 
-      await service.delete(1);
+      await service.delete(1, 1);
 
       expect(mockRepo.findById).toHaveBeenCalledWith(1);
       expect(mockRepo.softDelete).toHaveBeenCalledWith(1);
@@ -241,7 +244,7 @@ describe('SourceConnectionService', () => {
       mockRepo.findById.mockResolvedValue(mockConnection);
       mockRepo.update.mockResolvedValue({ ...mockConnection, enabled: true });
 
-      const result = await service.toggleEnabled(1, true);
+      const result = await service.toggleEnabled(1, 1, true);
 
       expect(mockRepo.update).toHaveBeenCalledWith(1, { enabled: true });
       expect(result.enabled).toBe(true);
