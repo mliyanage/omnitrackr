@@ -14,18 +14,56 @@ const router = Router();
 router.get('/configs', alertController.getAllConfigs);
 
 /**
- * @route   GET /api/alerts/configs/:id
- * @desc    Get a single alert configuration by ID
- * @access  Private (All roles can view)
- */
-router.get('/configs/:id', alertController.getConfigById);
-
-/**
  * @route   POST /api/alerts/configs
  * @desc    Create a new alert configuration
  * @access  Private (Owner, Editor only)
  */
 router.post('/configs', requireEditor(), alertController.createConfig);
+
+// ==================== Escalations (must come before /configs/:id) ====================
+
+/**
+ * @route   GET /api/alerts/configs/:configId/escalations
+ * @desc    Get all escalations for an alert config
+ * @access  Private (All roles can view)
+ */
+router.get('/configs/:configId/escalations', alertController.getEscalations);
+
+/**
+ * @route   POST /api/alerts/escalations
+ * @desc    Create a new escalation level
+ * @access  Private (Owner, Editor only)
+ */
+router.post('/escalations', requireEditor(), alertController.createEscalation);
+
+/**
+ * @route   PATCH /api/alerts/escalations/:id
+ * @desc    Update an escalation level
+ * @access  Private (Owner, Editor only)
+ */
+router.patch(
+  '/escalations/:id',
+  requireEditor(),
+  alertController.updateEscalation
+);
+
+/**
+ * @route   DELETE /api/alerts/escalations/:id
+ * @desc    Delete an escalation level (soft delete)
+ * @access  Private (Owner, Editor only)
+ */
+router.delete(
+  '/escalations/:id',
+  requireEditor(),
+  alertController.deleteEscalation
+);
+
+/**
+ * @route   GET /api/alerts/configs/:id
+ * @desc    Get a single alert configuration by ID
+ * @access  Private (All roles can view)
+ */
+router.get('/configs/:id', alertController.getConfigById);
 
 /**
  * @route   PATCH /api/alerts/configs/:id
@@ -88,44 +126,6 @@ router.delete(
   '/recipient-groups/:id',
   requireEditor(),
   alertController.deleteRecipientGroup
-);
-
-// ==================== Escalations ====================
-
-/**
- * @route   GET /api/alerts/configs/:configId/escalations
- * @desc    Get all escalations for an alert config
- * @access  Private (All roles can view)
- */
-router.get('/configs/:configId/escalations', alertController.getEscalations);
-
-/**
- * @route   POST /api/alerts/escalations
- * @desc    Create a new escalation level
- * @access  Private (Owner, Editor only)
- */
-router.post('/escalations', requireEditor(), alertController.createEscalation);
-
-/**
- * @route   PATCH /api/alerts/escalations/:id
- * @desc    Update an escalation level
- * @access  Private (Owner, Editor only)
- */
-router.patch(
-  '/escalations/:id',
-  requireEditor(),
-  alertController.updateEscalation
-);
-
-/**
- * @route   DELETE /api/alerts/escalations/:id
- * @desc    Delete an escalation level (soft delete)
- * @access  Private (Owner, Editor only)
- */
-router.delete(
-  '/escalations/:id',
-  requireEditor(),
-  alertController.deleteEscalation
 );
 
 // ==================== Alert History ====================
