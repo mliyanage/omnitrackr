@@ -73,8 +73,8 @@ jobs:
             --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --set-env-vars="NODE_ENV=production,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_PRODUCTION }},DB_PORT=${{ secrets.DB_PORT_PRODUCTION }},DB_NAME=${{ secrets.DB_NAME_PRODUCTION }},DB_USER=${{ secrets.DB_USER_PRODUCTION }},POLLING_WORKER_ENABLED=true,POLLING_BATCH_SIZE=50,SLA_MONITOR_ENABLED=false" \
-            --update-secrets="DB_PASSWORD=db-password-prod:latest" \
+            --set-env-vars="NODE_ENV=production,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_PRODUCTION }},DB_PORT=${{ secrets.DB_PORT_PRODUCTION }},DB_NAME=${{ secrets.DB_NAME_PRODUCTION }},DB_USER=${{ secrets.DB_USER_PRODUCTION }},POLLING_WORKER_ENABLED=true,POLLING_BATCH_SIZE=50,SLA_MONITOR_ENABLED=false,FROM_EMAIL=${{ secrets.FROM_EMAIL_PROD }},FROM_NAME=${{ secrets.FROM_NAME_PROD }},APP_URL=https://app.omnitrackr.com" \
+            --update-secrets="DB_PASSWORD=db-password-prod:latest,MJ_APIKEY_PUBLIC=mj-apikey-public-prod:latest,MJ_APIKEY_PRIVATE=mj-apikey-private-prod:latest" \
             --memory=1Gi \
             --cpu=1 \
             --max-retries=1 \
@@ -87,8 +87,22 @@ jobs:
             --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
-            --set-env-vars="NODE_ENV=production,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_PRODUCTION }},DB_PORT=${{ secrets.DB_PORT_PRODUCTION }},DB_NAME=${{ secrets.DB_NAME_PRODUCTION }},DB_USER=${{ secrets.DB_USER_PRODUCTION }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=true,SLA_LOOKBACK_HOURS=24" \
-            --update-secrets="DB_PASSWORD=db-password-prod:latest" \
+            --set-env-vars="NODE_ENV=production,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_PRODUCTION }},DB_PORT=${{ secrets.DB_PORT_PRODUCTION }},DB_NAME=${{ secrets.DB_NAME_PRODUCTION }},DB_USER=${{ secrets.DB_USER_PRODUCTION }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=true,SLA_LOOKBACK_HOURS=24,FROM_EMAIL=${{ secrets.FROM_EMAIL_PROD }},FROM_NAME=${{ secrets.FROM_NAME_PROD }},APP_URL=https://app.omnitrackr.com" \
+            --update-secrets="DB_PASSWORD=db-password-prod:latest,MJ_APIKEY_PUBLIC=mj-apikey-public-prod:latest,MJ_APIKEY_PRIVATE=mj-apikey-private-prod:latest" \
+            --memory=1Gi \
+            --cpu=1 \
+            --max-retries=1 \
+            --task-timeout=600s \
+            --execute-now
+
+      - name: Deploy Escalation Worker Job
+        run: |
+          gcloud run jobs deploy omnitrackr-escalation-worker \
+            --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --region=${{ env.GCP_REGION }} \
+            --project=${{ env.GCP_PROJECT_ID }} \
+            --set-env-vars="NODE_ENV=production,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_PRODUCTION }},DB_PORT=${{ secrets.DB_PORT_PRODUCTION }},DB_NAME=${{ secrets.DB_NAME_PRODUCTION }},DB_USER=${{ secrets.DB_USER_PRODUCTION }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=false,ESCALATION_WORKER_ENABLED=true,ESCALATION_CHECK_INTERVAL=300,ALERT_RETRY_DELAY_MINUTES=5,ALERT_MAX_RETRIES=3,FROM_EMAIL=${{ secrets.FROM_EMAIL_PROD }},FROM_NAME=${{ secrets.FROM_NAME_PROD }},APP_URL=https://app.omnitrackr.com" \
+            --update-secrets="DB_PASSWORD=db-password-prod:latest,MJ_APIKEY_PUBLIC=mj-apikey-public-prod:latest,MJ_APIKEY_PRIVATE=mj-apikey-private-prod:latest" \
             --memory=1Gi \
             --cpu=1 \
             --max-retries=1 \
@@ -100,9 +114,11 @@ jobs:
         run: |
           POLLING_JOB_URL="https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-polling-worker?project=${{ env.GCP_PROJECT_ID }}"
           SLA_JOB_URL="https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-sla-monitor?project=${{ env.GCP_PROJECT_ID }}"
+          ESCALATION_JOB_URL="https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-escalation-worker?project=${{ env.GCP_PROJECT_ID }}"
           echo "url=$POLLING_JOB_URL" >> $GITHUB_OUTPUT
           echo "Polling Job: $POLLING_JOB_URL"
           echo "SLA Monitor Job: $SLA_JOB_URL"
+          echo "Escalation Worker Job: $ESCALATION_JOB_URL"
 
       - name: Create deployment summary
         run: |
@@ -123,7 +139,14 @@ jobs:
           echo "2. **SLA Monitor Job** - \`omnitrackr-sla-monitor\`" >> $GITHUB_STEP_SUMMARY
           echo "   - Triggered by Cloud Scheduler: Every 5 minutes" >> $GITHUB_STEP_SUMMARY
           echo "   - Lookback period: 24 hours" >> $GITHUB_STEP_SUMMARY
+          echo "   - Sends email alerts for SLA breaches" >> $GITHUB_STEP_SUMMARY
           echo "   - [View Job](https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-sla-monitor?project=${{ env.GCP_PROJECT_ID }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "3. **Escalation Worker Job** - \`omnitrackr-escalation-worker\`" >> $GITHUB_STEP_SUMMARY
+          echo "   - Triggered by Cloud Scheduler: Every 5 minutes" >> $GITHUB_STEP_SUMMARY
+          echo "   - Processes alert escalations and retries" >> $GITHUB_STEP_SUMMARY
+          echo "   - Max retries: 3 with exponential backoff" >> $GITHUB_STEP_SUMMARY
+          echo "   - [View Job](https://console.cloud.google.com/run/jobs/details/${{ env.GCP_REGION }}/omnitrackr-escalation-worker?project=${{ env.GCP_PROJECT_ID }})" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Job Configuration" >> $GITHUB_STEP_SUMMARY
           echo "- **Mode:** Job (run once per trigger)" >> $GITHUB_STEP_SUMMARY

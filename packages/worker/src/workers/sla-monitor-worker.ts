@@ -1,5 +1,6 @@
 import { Knex } from 'knex';
 import { SLAMonitorService } from '../services/sla-monitor.service';
+import { NotificationManagerService } from '../services/notification-manager.service';
 import { getCurrentTimestamp } from '../utils/timestamp.utils';
 
 /**
@@ -11,6 +12,7 @@ import { getCurrentTimestamp } from '../utils/timestamp.utils';
  */
 export class SLAMonitorWorker {
   private slaMonitorService: SLAMonitorService;
+  private notificationManager: NotificationManagerService;
   private isRunning: boolean = false;
   private intervalId: NodeJS.Timeout | null = null;
 
@@ -23,6 +25,7 @@ export class SLAMonitorWorker {
     }
   ) {
     this.slaMonitorService = new SLAMonitorService(db);
+    this.notificationManager = new NotificationManagerService(db);
   }
 
   /**
@@ -114,14 +117,11 @@ export class SLAMonitorWorker {
       );
 
       // Step 3: Trigger notifications for alerts
-      // TODO: Integrate with notification manager
       if (alerts.length > 0) {
-        console.log(`\n   🚨 Found ${alerts.length} SLA violations:`);
-        for (const alert of alerts) {
-          console.log(
-            `      - Watcher: ${alert.watcher.name}, Type: ${alert.alertType}, Message: ${alert.message}`
-          );
-        }
+        console.log(
+          `\n   🚨 Found ${alerts.length} SLA violations, sending alerts...`
+        );
+        await this.notificationManager.processAlerts(alerts);
       }
 
       // Log summary

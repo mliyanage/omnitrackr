@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { User } from '../types/auth.types';
+import { queryClient } from '@/lib/queryClient';
 
 /**
  * Authentication Store State
@@ -74,9 +75,12 @@ export const useAuthStore = create<AuthState>()(
 
       /**
        * Clear authentication data on logout
+       * CRITICAL: Also clears React Query cache to prevent cross-tenant data leakage
        */
       clearAuth: () => {
         set(initialState);
+        // Clear all React Query cache to prevent showing cached data from previous organization
+        queryClient.clear();
       },
 
       /**

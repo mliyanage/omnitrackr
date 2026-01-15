@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { Plus, Users as UsersIcon, UserCheck, UserX, Shield } from 'lucide-react';
+import { Plus, Users as UsersIcon, UserCheck, UserX, Shield, MailPlus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -42,6 +43,7 @@ import { UserEditSheet } from '@/components/users/UserEditSheet';
  * User management page for Owners and Super Admins
  */
 export default function UsersPage() {
+  const navigate = useNavigate();
   const [selectedUser, setSelectedUser] = useState<UserWithDepartments | undefined>();
   const [isInviteSheetOpen, setIsInviteSheetOpen] = useState(false);
   const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
@@ -88,6 +90,7 @@ export default function UsersPage() {
 
   const handleInviteSuccess = () => {
     queryClient.invalidateQueries({ queryKey: ['users'] });
+    queryClient.invalidateQueries({ queryKey: ['invitations'] });
     setIsInviteSheetOpen(false);
     showSuccess('User invited successfully');
   };
@@ -171,10 +174,16 @@ export default function UsersPage() {
           </p>
         </div>
         {isOwnerOrAdmin && (
-          <Button onClick={handleInviteNew}>
-            <Plus className="mr-2 h-4 w-4" />
-            Invite User
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={() => navigate('/invitations')}>
+              <MailPlus className="mr-2 h-4 w-4" />
+              View Invitations
+            </Button>
+            <Button onClick={handleInviteNew}>
+              <Plus className="mr-2 h-4 w-4" />
+              Invite User
+            </Button>
+          </div>
         )}
       </div>
 

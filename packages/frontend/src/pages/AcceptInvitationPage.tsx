@@ -17,13 +17,12 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { acceptInvitation } from '@/api/users.api';
+import { getInvitationByToken } from '@/api/invitations.api';
 import { useAuthStore } from '@/stores/authStore';
 import { showSuccess, showError } from '@/lib/toast';
 
 const acceptInvitationSchema = z
   .object({
-    firstName: z.string().min(1, 'First name is required'),
-    lastName: z.string().min(1, 'Last name is required'),
     password: z
       .string()
       .min(8, 'Password must be at least 8 characters')
@@ -45,15 +44,17 @@ export default function AcceptInvitationPage() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const [token, setToken] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inviteeEmail, setInviteeEmail] = useState<string>('');
+  const [inviteeFirstName, setInviteeFirstName] = useState<string>('');
+  const [inviteeLastName, setInviteeLastName] = useState<string>('');
 
   const form = useForm<AcceptInvitationFormValues>({
     resolver: zodResolver(acceptInvitationSchema),
     defaultValues: {
-      firstName: '',
-      lastName: '',
       password: '',
       confirmPassword: '',
     },
@@ -63,8 +64,22 @@ export default function AcceptInvitationPage() {
     const inviteToken = searchParams.get('token');
     if (!inviteToken) {
       setError('Invalid invitation link. Please check your email for the correct link.');
+      setIsLoading(false);
     } else {
       setToken(inviteToken);
+      // Fetch invitation details
+      getInvitationByToken(inviteToken)
+        .then((invitation) => {
+          setInviteeEmail(invitation.email || '');
+          setInviteeFirstName(invitation.first_name || '');
+          setInviteeLastName(invitation.last_name || '');
+          setIsLoading(false);
+        })
+        .catch((err: any) => {
+          const errorMessage = err.response?.data?.error?.message || 'Failed to load invitation';
+          setError(errorMessage);
+          setIsLoading(false);
+        });
     }
   }, [searchParams]);
 
@@ -80,8 +95,6 @@ export default function AcceptInvitationPage() {
     try {
       const response = await acceptInvitation({
         token,
-        firstName: values.firstName,
-        lastName: values.lastName,
         password: values.password,
       });
 
@@ -107,7 +120,7 @@ export default function AcceptInvitationPage() {
     }
   };
 
-  if (!token && !error) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -126,7 +139,11 @@ export default function AcceptInvitationPage() {
             Accept Invitation
           </CardTitle>
           <CardDescription className="text-center">
-            Create your account to join your organization on OmniTrackr
+            {inviteeFirstName && inviteeLastName ? (
+              <>Welcome {inviteeFirstName} {inviteeLastName}! Set your password to get started.</>
+            ) : (
+              <>Create your account to join your organization on OmniTrackr</>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -137,51 +154,23 @@ export default function AcceptInvitationPage() {
           ) : (
             <Form {...form}>
               <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                {/* First Name */}
-                <FormField
-                  control={form.control}
-                  name="firstName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>First Name</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            placeholder="John"
-                            className="pl-10"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                {/* Last Name */}
-                <FormField
-                  control={form.control}
-                  name="lastName"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Last Name</FormLabel>
-                      <FormControl>
-                        <div className="relative">
-                          <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-                          <Input
-                            {...field}
-                            placeholder="Doe"
-                            className="pl-10"
-                            disabled={isSubmitting}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                {/* Show email and name (read-only) */}
+                {inviteeEmail && (
+                  <div className="space-y-2 mb-4 p-3 bg-gray-50 rounded-md">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Mail className="h-4 w-4 text-gray-500" />
+                      <span className="font-medium text-gray-700">{inviteeEmail}</span>
+                    </div>
+                    {inviteeFirstName && inviteeLastName && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <User className="h-4 w-4 text-gray-500" />
+                        <span className="font-medium text-gray-700">
+                          {inviteeFirstName} {inviteeLastName}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Password */}
                 <FormField

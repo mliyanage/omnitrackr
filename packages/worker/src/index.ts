@@ -1,6 +1,7 @@
 import { getDatabase, initializeDatabase, closeDatabase } from './config/database';
 import { PollingWorker } from './workers/polling-worker';
 import { SLAMonitorWorker } from './workers/sla-monitor-worker';
+import { EscalationWorker } from './workers/escalation-worker';
 
 // Export services for use by other packages (e.g., API package for manual triggers)
 export { PollingService } from './services/polling.service';
@@ -22,6 +23,7 @@ const RUN_MODE = process.env.RUN_MODE || 'job';
 
 let pollingWorker: PollingWorker | null = null;
 let slaMonitorWorker: SLAMonitorWorker | null = null;
+let escalationWorker: EscalationWorker | null = null;
 let isShuttingDown = false;
 
 /**
@@ -72,6 +74,23 @@ async function runJobMode(): Promise<void> {
         success = false;
         results.push(`❌ SLA monitor failed: ${error}`);
         console.error('SLA monitor error:', error);
+      }
+    }
+
+    // Run escalation worker once
+    if (process.env.ESCALATION_WORKER_ENABLED !== 'false') {
+      console.log('🔼 Running escalation worker...');
+      escalationWorker = new EscalationWorker(db, {
+        checkIntervalSeconds: 0, // Not used in job mode
+      });
+
+      try {
+        await escalationWorker.runOnce();
+        results.push('✅ Escalation worker completed');
+      } catch (error) {
+        success = false;
+        results.push(`❌ Escalation worker failed: ${error}`);
+        console.error('Escalation worker error:', error);
       }
     }
 
@@ -129,6 +148,16 @@ async function runContinuousMode(): Promise<void> {
       console.log('⏭️  SLA monitor worker disabled');
     }
 
+    // Start escalation worker with intervals
+    if (process.env.ESCALATION_WORKER_ENABLED !== 'false') {
+      escalationWorker = new EscalationWorker(db, {
+        checkIntervalSeconds: parseInt(process.env.ESCALATION_CHECK_INTERVAL || '300'),
+      });
+      await escalationWorker.start();
+    } else {
+      console.log('⏭️  Escalation worker disabled');
+    }
+
     console.log('\n✅ All workers started successfully');
     console.log('   Press Ctrl+C to stop\n');
 
@@ -156,6 +185,7 @@ async function gracefulShutdown(exitCode: number = 0): Promise<void> {
   try {
     if (pollingWorker) await pollingWorker.stop();
     if (slaMonitorWorker) await slaMonitorWorker.stop();
+    if (escalationWorker) await escalationWorker.stop();
     await closeDatabase();
 
     clearTimeout(forceExitTimeout);

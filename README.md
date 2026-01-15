@@ -115,6 +115,8 @@ See [REPOSITORY_STRUCTURE.md](./REPOSITORY_STRUCTURE.md) for detailed structure.
 
 - [Repository Structure](./REPOSITORY_STRUCTURE.md) - Complete folder structure and organization
 - [S3 File Source Design](./docs/S3_FILE_SOURCE_DESIGN.md) - Detailed design document
+- [SLA Breach Alerting System](./docs/sla-alerting-system.md) - Complete user guide and API reference
+- [SLA Alerting Implementation Progress](./docs/sla-alerting-implementation-progress.md) - Implementation status
 - [API Documentation](./docs/API_DOCUMENTATION.md) - API endpoints (to be created)
 - [Deployment Guide](./docs/DEPLOYMENT_GUIDE.md) - Deployment instructions (to be created)
 

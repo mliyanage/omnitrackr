@@ -153,6 +153,7 @@ export class SourceConnectionRepository extends BaseRepository {
     type?: SourceType;
     connection_status?: ConnectionStatus;
     enabled?: boolean;
+    organization_id?: number;
     page?: number;
     limit?: number;
   }): Promise<{
@@ -168,6 +169,7 @@ export class SourceConnectionRepository extends BaseRepository {
     if (options.type) filters.type = options.type;
     if (options.connection_status) filters.connection_status = options.connection_status;
     if (options.enabled !== undefined) filters.enabled = options.enabled;
+    if (options.organization_id) filters.organization_id = options.organization_id;
 
     return this.paginate({
       filters,

@@ -10,7 +10,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 /**
  * Source Connection Controller
  * Handles HTTP requests for source connection management
- * Source connections are shared resources across organizations
+ * Source connections are organization-scoped resources
  */
 export class SourceConnectionController {
   private service: SourceConnectionService;
@@ -24,9 +24,11 @@ export class SourceConnectionController {
    */
   getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { page, limit, type, connection_status, enabled } = req.query;
 
       const result = await this.service.getAll(
+        authReq.user.organizationId!,
         Number(page) || 1,
         Number(limit) || 20,
         {
@@ -51,8 +53,9 @@ export class SourceConnectionController {
    */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const connection = await this.service.getById(Number(id));
+      const connection = await this.service.getById(Number(id), authReq.user.organizationId!);
 
       res.status(200).json({
         success: true,
@@ -90,7 +93,11 @@ export class SourceConnectionController {
       const createRequest: CreateSourceConnectionRequest = req.body;
       const createdBy = authReq.user.id.toString();
 
-      const connection = await this.service.create(createRequest, createdBy);
+      const connection = await this.service.create(
+        authReq.user.organizationId!,
+        createRequest,
+        createdBy
+      );
 
       res.status(201).json({
         success: true,
@@ -112,7 +119,12 @@ export class SourceConnectionController {
       const updateRequest: UpdateSourceConnectionRequest = req.body;
       const updatedBy = authReq.user.id.toString();
 
-      const connection = await this.service.update(Number(id), updateRequest, updatedBy);
+      const connection = await this.service.update(
+        Number(id),
+        authReq.user.organizationId!,
+        updateRequest,
+        updatedBy
+      );
 
       res.status(200).json({
         success: true,
@@ -129,8 +141,9 @@ export class SourceConnectionController {
    */
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      await this.service.delete(Number(id));
+      await this.service.delete(Number(id), authReq.user.organizationId!);
 
       res.status(200).json({
         success: true,
@@ -146,8 +159,9 @@ export class SourceConnectionController {
    */
   checkHealth = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const result = await this.service.checkHealth(Number(id));
+      const result = await this.service.checkHealth(Number(id), authReq.user.organizationId!);
 
       res.status(200).json({
         success: true,
@@ -164,10 +178,15 @@ export class SourceConnectionController {
    */
   toggleEnabled = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const { enabled } = req.body;
 
-      const connection = await this.service.toggleEnabled(Number(id), enabled);
+      const connection = await this.service.toggleEnabled(
+        Number(id),
+        authReq.user.organizationId!,
+        enabled
+      );
 
       res.status(200).json({
         success: true,

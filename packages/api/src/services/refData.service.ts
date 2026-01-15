@@ -105,13 +105,6 @@ export class RefDataService {
   // Convenience methods for specific data types
 
   /**
-   * Get all departments
-   */
-  async getDepartments(): Promise<RefData[]> {
-    return this.repo.getDepartments();
-  }
-
-  /**
    * Get all timezones
    */
   async getTimezones(): Promise<RefData[]> {

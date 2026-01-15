@@ -37,9 +37,9 @@ export class ScheduleRepository extends BaseRepository {
   /**
    * Find active schedules (enabled and within valid period)
    */
-  async findActive(currentTime: Date = new Date()): Promise<Schedule[]> {
+  async findActive(organizationId: number, currentTime: Date = new Date()): Promise<Schedule[]> {
     return this.db(this.tableName)
-      .where({ enabled: true, deleted_at: null })
+      .where({ enabled: true, deleted_at: null, organization_id: organizationId })
       .andWhere(function () {
         this.whereNull('valid_from').orWhere('valid_from', '<=', currentTime);
       })
@@ -112,6 +112,7 @@ export class ScheduleRepository extends BaseRepository {
   async findWithFilters(options: {
     frequency_type?: FrequencyType;
     enabled?: boolean;
+    organization_id?: number;
     page?: number;
     limit?: number;
   }): Promise<{
@@ -126,6 +127,7 @@ export class ScheduleRepository extends BaseRepository {
     const filters: any = { deleted_at: null };
     if (options.frequency_type) filters.frequency_type = options.frequency_type;
     if (options.enabled !== undefined) filters.enabled = options.enabled;
+    if (options.organization_id) filters.organization_id = options.organization_id;
 
     return this.paginate({
       filters,

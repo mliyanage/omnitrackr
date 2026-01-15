@@ -4,9 +4,10 @@ import {
   Database,
   FileInput,
   FileSearch,
-  Bell,
+  BellRing,
   Settings,
-  Users
+  Users,
+  MailPlus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,14 +39,19 @@ const navItems: NavItem[] = [
     icon: FileSearch,
   },
   {
-    title: 'Notifications',
-    href: '/notifications',
-    icon: Bell,
+    title: 'Alerts',
+    href: '/alerts',
+    icon: BellRing,
   },
   {
     title: 'Users',
     href: '/users',
     icon: Users,
+  },
+  {
+    title: 'Invitations',
+    href: '/invitations',
+    icon: MailPlus,
   },
   {
     title: 'Settings',

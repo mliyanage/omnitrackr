@@ -49,11 +49,27 @@ export class UserRepository extends BaseRepository {
   }
 
   /**
-   * Find user by email
+   * Find user by email (global search)
    */
   async findByEmail(email: string): Promise<User | undefined> {
     return this.db(this.tableName)
       .where({ email, deleted_at: null })
+      .first();
+  }
+
+  /**
+   * Find user by email and organization (organization-scoped search)
+   */
+  async findByEmailAndOrganization(
+    email: string,
+    organizationId: number
+  ): Promise<User | undefined> {
+    return this.db(this.tableName)
+      .where({
+        email,
+        organization_id: organizationId,
+        deleted_at: null,
+      })
       .first();
   }
 

@@ -26,9 +26,10 @@ export class SourceConnectionService {
   }
 
   /**
-   * Get all connections with pagination
+   * Get all connections with pagination (filtered by organization)
    */
   async getAll(
+    organizationId: number,
     page: number = 1,
     limit: number = 20,
     filters?: {
@@ -39,19 +40,26 @@ export class SourceConnectionService {
   ) {
     return this.repo.findWithFilters({
       ...filters,
+      organization_id: organizationId,
       page,
       limit,
     });
   }
 
   /**
-   * Get connection by ID
+   * Get connection by ID (with organization ownership validation)
    */
-  async getById(id: number): Promise<SourceConnection> {
+  async getById(id: number, organizationId: number): Promise<SourceConnection> {
     const connection = await this.repo.findById<SourceConnection>(id);
     if (!connection || connection.deleted_at) {
       throw new NotFoundError('Source Connection', id);
     }
+
+    // Validate organization ownership
+    if (connection.organization_id !== organizationId) {
+      throw new NotFoundError('Source Connection', id);
+    }
+
     return connection;
   }
 
@@ -264,6 +272,7 @@ export class SourceConnectionService {
    * If a soft-deleted connection with the same name exists, restore and update it
    */
   async create(
+    organizationId: number,
     request: CreateSourceConnectionRequest,
     createdBy?: string
   ): Promise<SourceConnection> {
@@ -275,10 +284,10 @@ export class SourceConnectionService {
 
     const connectionStatus: ConnectionStatus = testResult.success ? 'healthy' : 'failed';
 
-    // Check if a soft-deleted connection with this name exists
+    // Check if a soft-deleted connection with this name exists in this organization
     const deletedConnection = await this.repo.findDeletedByName(request.name);
 
-    if (deletedConnection) {
+    if (deletedConnection && deletedConnection.organization_id === organizationId) {
       // Restore the soft-deleted connection and update it with new values
       return this.repo.restore(deletedConnection.id, {
         type: request.type,
@@ -304,6 +313,7 @@ export class SourceConnectionService {
       last_successful_connection: testResult.success ? new Date() : null,
       health_check_error: testResult.errorMessage || null,
       enabled: testResult.success ? (request.enabled ?? true) : false,
+      organization_id: organizationId,
       created_by: createdBy,
     });
 
@@ -315,10 +325,11 @@ export class SourceConnectionService {
    */
   async update(
     id: number,
+    organizationId: number,
     request: UpdateSourceConnectionRequest,
     updatedBy?: string
   ): Promise<SourceConnection> {
-    await this.getById(id); // Ensure exists
+    await this.getById(id, organizationId); // Ensure exists and validate ownership
 
     // Update connection details
     const updated = await this.repo.update<SourceConnection>(id, {
@@ -344,22 +355,22 @@ export class SourceConnectionService {
     await this.repo.updateHealthStatus(id, healthResult);
 
     // Return the updated connection with health status
-    return this.getById(id);
+    return this.getById(id, organizationId);
   }
 
   /**
    * Delete connection (soft delete)
    */
-  async delete(id: number): Promise<void> {
-    await this.getById(id);
+  async delete(id: number, organizationId: number): Promise<void> {
+    await this.getById(id, organizationId); // Validate ownership
     await this.repo.softDelete(id);
   }
 
   /**
    * Check connection health
    */
-  async checkHealth(id: number): Promise<ConnectionHealthCheckResult> {
-    const connection = await this.getById(id);
+  async checkHealth(id: number, organizationId: number): Promise<ConnectionHealthCheckResult> {
+    const connection = await this.getById(id, organizationId);
 
     const testResult = await this.testConnection({
       type: connection.type,
@@ -381,8 +392,8 @@ export class SourceConnectionService {
   /**
    * Toggle enabled status
    */
-  async toggleEnabled(id: number, enabled: boolean): Promise<SourceConnection> {
-    await this.getById(id);
+  async toggleEnabled(id: number, organizationId: number, enabled: boolean): Promise<SourceConnection> {
+    await this.getById(id, organizationId); // Validate ownership
     return this.repo.update<SourceConnection>(id, { enabled });
   }
 

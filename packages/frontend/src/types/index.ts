@@ -28,6 +28,9 @@ export * from './watcher.types';
 // Export authentication and user management types
 export * from './auth.types';
 
+// Export alert types
+export * from './alert.types';
+
 export type FileSourceType = 'S3' | 'AZURE_BLOB' | 'GCS' | 'SFTP' | 'FTP' | 'FTPS' | 'SHAREPOINT' | 'REST_API' | 'DATABASE' | 'FILE_SHARE';
 export type FileSourceStatus = 'active' | 'failed' | 'pending' | 'disabled';
 export type FileSourceDirection = 'inward' | 'outward' | 'bidirectional';

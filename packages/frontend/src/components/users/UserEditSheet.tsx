@@ -112,8 +112,8 @@ export function UserEditSheet({ open, onOpenChange, user, onSuccess }: UserEditS
       await updateMutation.mutateAsync({
         userId: user.id,
         data: {
-          first_name: values.first_name,
-          last_name: values.last_name,
+          firstName: values.first_name,
+          lastName: values.last_name,
           phone: values.phone || undefined,
           role: values.role as UserRole,
           status: values.status as UserStatus,

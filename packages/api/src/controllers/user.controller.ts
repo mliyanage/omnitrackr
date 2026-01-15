@@ -32,9 +32,15 @@ export class UserController {
         authReq.user.organizationId!
       );
 
+      // Map phone_number to phone for frontend compatibility
+      const mappedUsers = users.map((user: any) => {
+        const { phone_number, ...rest } = user;
+        return { ...rest, phone: phone_number };
+      });
+
       res.status(200).json({
         success: true,
-        data: users,
+        data: mappedUsers,
       });
     } catch (error) {
       next(error);
@@ -62,9 +68,13 @@ export class UserController {
         throw new UnauthorizedError('User belongs to different organization');
       }
 
+      // Map phone_number to phone for frontend compatibility
+      const { phone_number, ...rest } = user as any;
+      const mappedUser = { ...rest, phone: phone_number };
+
       res.status(200).json({
         success: true,
-        data: user,
+        data: mappedUser,
       });
     } catch (error) {
       next(error);
@@ -122,6 +132,8 @@ export class UserController {
       const { id } = req.params;
       const updateRequest: UpdateUserRequest = req.body;
 
+      console.log('Controller received update request:', JSON.stringify(updateRequest, null, 2));
+
       // Only owners can update other users
       if (authReq.user.role !== 'owner' && authReq.user.id !== Number(id)) {
         throw new UnauthorizedError('You can only update your own profile');
@@ -138,9 +150,13 @@ export class UserController {
         authReq.user.id
       );
 
+      // Map phone_number to phone for frontend compatibility
+      const { phone_number, ...rest } = user as any;
+      const mappedUser = { ...rest, phone: phone_number };
+
       res.status(200).json({
         success: true,
-        data: user,
+        data: mappedUser,
         message: 'User updated successfully',
       });
     } catch (error) {
@@ -211,6 +227,25 @@ export class UserController {
   };
 
   /**
+   * GET /api/users/invitation/:token
+   * Get invitation details by token (public)
+   */
+  getInvitationByToken = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const { token } = req.params;
+
+      const invitation = await this.service.getInvitationByToken(token);
+
+      res.status(200).json({
+        success: true,
+        data: invitation,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
    * POST /api/users/accept-invitation
    * Accept invitation and create user account (public)
    */
@@ -227,14 +262,112 @@ export class UserController {
 
       const result = await this.service.acceptInvitation(acceptRequest, deviceInfo);
 
+      // Map phone_number to phone for frontend compatibility
+      const { phone_number, ...rest } = result.user as any;
+      const mappedUser = { ...rest, phone: phone_number };
+
       res.status(201).json({
         success: true,
         data: {
-          user: result.user,
+          user: mappedUser,
           accessToken: result.accessToken,
           refreshToken: result.refreshToken,
         },
         message: 'Invitation accepted successfully. Welcome to OmniTrackr!',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * GET /api/users/invitations
+   * List pending invitations for organization (owner only)
+   */
+  listInvitations = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+
+      // Only owners can list invitations
+      if (authReq.user.role !== 'owner') {
+        throw new UnauthorizedError('Only organization owners can view invitations');
+      }
+
+      const invitations = await this.service.getPendingInvitations(
+        authReq.user.organizationId!
+      );
+
+      res.status(200).json({
+        success: true,
+        data: invitations,
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * POST /api/users/invitations/:id/resend
+   * Resend invitation email (owner only)
+   */
+  resendInvitation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
+
+      // Only owners can resend invitations
+      if (authReq.user.role !== 'owner') {
+        throw new UnauthorizedError('Only organization owners can resend invitations');
+      }
+
+      // Get organization name and inviter name for email
+      const org = await db('organizations')
+        .where({ id: authReq.user.organizationId })
+        .first();
+
+      const inviter = await db('users')
+        .where({ id: authReq.user.id })
+        .first();
+
+      const invitation = await this.service.resendInvitation(
+        Number(id),
+        authReq.user.organizationId!,
+        org.name,
+        `${inviter.first_name} ${inviter.last_name}`
+      );
+
+      res.status(200).json({
+        success: true,
+        data: invitation,
+        message: 'Invitation resent successfully',
+      });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  /**
+   * DELETE /api/users/invitations/:id
+   * Delete/cancel invitation (owner only)
+   */
+  deleteInvitation = async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const authReq = req as AuthenticatedRequest;
+      const { id } = req.params;
+
+      // Only owners can delete invitations
+      if (authReq.user.role !== 'owner') {
+        throw new UnauthorizedError('Only organization owners can delete invitations');
+      }
+
+      await this.service.deleteInvitation(
+        Number(id),
+        authReq.user.organizationId!
+      );
+
+      res.status(200).json({
+        success: true,
+        message: 'Invitation cancelled successfully',
       });
     } catch (error) {
       next(error);

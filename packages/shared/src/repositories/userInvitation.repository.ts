@@ -3,6 +3,8 @@ import { BaseRepository } from './base.repository';
 export interface UserInvitation {
   id: number;
   email: string;
+  first_name?: string;
+  last_name?: string;
   organization_id: number;
   role: 'owner' | 'editor' | 'viewer';
   department_ids?: number[];
@@ -32,12 +34,29 @@ export class UserInvitationRepository extends BaseRepository {
   }
 
   /**
-   * Find pending invitations by email
+   * Find pending invitations by email (all organizations)
    */
   async findPendingByEmail(email: string): Promise<UserInvitation[]> {
     return this.db(this.tableName)
       .where({
         email: email.toLowerCase(),
+        status: 'pending',
+      })
+      .andWhere('expires_at', '>', this.db.fn.now())
+      .orderBy('created_at', 'desc');
+  }
+
+  /**
+   * Find pending invitations by email and organization
+   */
+  async findPendingByEmailAndOrganization(
+    email: string,
+    organizationId: number
+  ): Promise<UserInvitation[]> {
+    return this.db(this.tableName)
+      .where({
+        email: email.toLowerCase(),
+        organization_id: organizationId,
         status: 'pending',
       })
       .andWhere('expires_at', '>', this.db.fn.now())

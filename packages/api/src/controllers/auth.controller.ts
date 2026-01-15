@@ -177,12 +177,15 @@ export class AuthController {
         return;
       }
 
-      // Remove sensitive fields
-      const { password_hash, two_fa_secret, two_fa_backup_codes, ...sanitizedUser } = user;
+      // Remove sensitive fields and map field names for frontend
+      const { password_hash, two_fa_secret, two_fa_backup_codes, phone_number, ...sanitizedUser } = user;
 
       res.status(200).json({
         success: true,
-        data: sanitizedUser,
+        data: {
+          ...sanitizedUser,
+          phone: phone_number, // Map phone_number to phone for frontend compatibility
+        },
       });
     } catch (error) {
       next(error);

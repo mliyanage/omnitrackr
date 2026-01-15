@@ -96,8 +96,8 @@ export function ProfileForm({ user, onSuccess }: ProfileFormProps) {
     await updateMutation.mutateAsync({
       userId: user.id,
       data: {
-        first_name: values.first_name,
-        last_name: values.last_name,
+        firstName: values.first_name,
+        lastName: values.last_name,
         phone: values.phone || undefined,
         timezone: values.timezone,
         locale: values.locale,

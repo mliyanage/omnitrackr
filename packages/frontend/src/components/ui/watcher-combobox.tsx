@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 export interface WatcherOption {
   id: number;
   name: string;
+  department_code?: string;
 }
 
 interface WatcherComboboxProps {
@@ -23,6 +24,7 @@ interface WatcherComboboxProps {
   onValueChange: (value: string) => void;
   placeholder?: string;
   className?: string;
+  disabled?: boolean;
 }
 
 export function WatcherCombobox({
@@ -31,6 +33,7 @@ export function WatcherCombobox({
   onValueChange,
   placeholder = 'Select watcher...',
   className,
+  disabled = false,
 }: WatcherComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -43,17 +46,18 @@ export function WatcherCombobox({
           variant="outline"
           role="combobox"
           aria-expanded={open}
+          disabled={disabled}
           className={cn('w-full md:w-[200px] justify-between', className)}
         >
           {value === 'all'
             ? 'All Watchers'
             : selectedWatcher
-              ? selectedWatcher.name
+              ? `${selectedWatcher.name}${selectedWatcher.department_code ? ` (${selectedWatcher.department_code})` : ''}`
               : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-0" align="start">
+      <PopoverContent className="w-[300px] p-0" align="start">
         <Command>
           <CommandInput placeholder="Search watchers..." />
           <CommandList>
@@ -84,7 +88,12 @@ export function WatcherCombobox({
                       value === watcher.id.toString() ? 'opacity-100' : 'opacity-0'
                     )}
                   />
-                  {watcher.name}
+                  <span>
+                    {watcher.name}
+                    {watcher.department_code && (
+                      <span className="text-muted-foreground ml-1">({watcher.department_code})</span>
+                    )}
+                  </span>
                 </CommandItem>
               ))}
             </CommandGroup>

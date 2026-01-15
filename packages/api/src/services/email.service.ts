@@ -5,41 +5,55 @@ import Mailjet from 'node-mailjet';
  * Handles all transactional emails via Mailjet REST API
  */
 export class EmailService {
-  private mailjet: any;
+  private mailjet: any = null;
   private fromEmail: string;
   private fromName: string;
   private appUrl: string;
+  private apiKey: string | undefined;
+  private apiSecret: string | undefined;
 
   constructor() {
-    // Validate environment variables
-    const apiKey = process.env.MJ_APIKEY_PUBLIC || process.env.SMTP_USER;
-    const apiSecret = process.env.MJ_APIKEY_PRIVATE || process.env.SMTP_PASSWORD;
+    // Store credentials but don't initialize Mailjet yet
+    this.apiKey = process.env.MJ_APIKEY_PUBLIC || process.env.SMTP_USER;
+    this.apiSecret = process.env.MJ_APIKEY_PRIVATE || process.env.SMTP_PASSWORD;
     this.fromEmail = process.env.FROM_EMAIL || 'noreply@omnitrackr.com';
     this.fromName = process.env.FROM_NAME || 'OmniTrackr';
     this.appUrl = process.env.APP_URL || 'http://localhost:5173';
 
-    // Debug logging
-    console.log('EmailService initialization:');
-    console.log('  MJ_APIKEY_PUBLIC:', process.env.MJ_APIKEY_PUBLIC ? `${process.env.MJ_APIKEY_PUBLIC.substring(0, 10)}...` : 'NOT SET');
-    console.log('  MJ_APIKEY_PRIVATE:', process.env.MJ_APIKEY_PRIVATE ? `${process.env.MJ_APIKEY_PRIVATE.substring(0, 10)}...` : 'NOT SET');
-    console.log('  SMTP_USER (fallback):', process.env.SMTP_USER ? `${process.env.SMTP_USER.substring(0, 10)}...` : 'NOT SET');
-    console.log('  SMTP_PASSWORD (fallback):', process.env.SMTP_PASSWORD ? `${process.env.SMTP_PASSWORD.substring(0, 10)}...` : 'NOT SET');
-    console.log('  Using API Key:', apiKey ? `${apiKey.substring(0, 10)}...` : 'MISSING');
-    console.log('  Using API Secret:', apiSecret ? `${apiSecret.substring(0, 10)}...` : 'MISSING');
-    console.log('  FROM_EMAIL:', this.fromEmail);
-    console.log('  FROM_NAME:', this.fromName);
+    // Debug logging (only in development)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('EmailService initialized:');
+      console.log('  Mailjet configured:', this.apiKey && this.apiSecret ? 'YES' : 'NO');
+      console.log('  FROM_EMAIL:', this.fromEmail);
+      console.log('  FROM_NAME:', this.fromName);
+    }
 
-    if (!apiKey || !apiSecret) {
+    if (!this.apiKey || !this.apiSecret) {
       console.warn(
+        '⚠️  Email service not configured. Alerts will not be sent via email.'
+      );
+      console.warn('   Set MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE environment variables to enable email alerts.');
+    }
+  }
+
+  /**
+   * Lazy-load Mailjet client
+   */
+  private getMailjetClient(): any {
+    if (!this.apiKey || !this.apiSecret) {
+      throw new Error(
         'Email service not configured. Set MJ_APIKEY_PUBLIC and MJ_APIKEY_PRIVATE environment variables.'
       );
     }
 
-    // Initialize Mailjet client
-    this.mailjet = new Mailjet({
-      apiKey: apiKey || '',
-      apiSecret: apiSecret || '',
-    });
+    if (!this.mailjet) {
+      this.mailjet = new Mailjet({
+        apiKey: this.apiKey,
+        apiSecret: this.apiSecret,
+      });
+    }
+
+    return this.mailjet;
   }
 
   /**
@@ -117,13 +131,15 @@ export class EmailService {
     email: string,
     token: string,
     organizationName: string,
-    inviterName: string
+    inviterName: string,
+    inviteeFirstName?: string
   ): Promise<void> {
     const inviteUrl = `${this.appUrl}/accept-invitation?token=${token}`;
+    const greeting = inviteeFirstName ? `Hi ${inviteeFirstName},` : 'Hi there,';
 
     const html = this.generateEmailTemplate({
       title: 'You\'re Invited!',
-      greeting: `Hi there,`,
+      greeting,
       content: `
         <p>${inviterName} has invited you to join <strong>${organizationName}</strong> on OmniTrackr.</p>
         <p>Click the button below to accept your invitation and set up your account:</p>
@@ -237,6 +253,197 @@ export class EmailService {
   }
 
   /**
+   * Send SLA breach alert email
+   */
+  async sendSLABreachAlert(options: {
+    to: string;
+    cc?: string[];
+    bcc?: string[];
+    alert: {
+      type: string; // 'sla_breached' | 'sla_at_risk' | 'file_arrived'
+      watcherName: string;
+      expectedPattern: string;
+      expectedAt: Date;
+      slaDeadline: Date;
+      departmentCode?: string;
+      message: string;
+      escalationLevel?: number;
+    };
+  }): Promise<void> {
+    const { alert } = options;
+
+    const alertTypeLabels: Record<string, string> = {
+      sla_breached: 'SLA BREACH',
+      sla_at_risk: 'SLA AT RISK',
+      file_arrived: 'FILE ARRIVED',
+    };
+
+    const alertTypeColors: Record<string, string> = {
+      sla_breached: '#dc2626', // Red
+      sla_at_risk: '#f59e0b', // Orange
+      file_arrived: '#10b981', // Green
+    };
+
+    const alertLabel = alertTypeLabels[alert.type] || alert.type.toUpperCase();
+    const alertColor = alertTypeColors[alert.type] || '#667eea';
+    const escalationNote = alert.escalationLevel && alert.escalationLevel > 0
+      ? `<p style="background-color: #fee2e2; padding: 12px; border-left: 4px solid ${alertColor}; margin: 20px 0;"><strong>⚠️ Escalation Level ${alert.escalationLevel}</strong> - This alert has been escalated due to no acknowledgment.</p>`
+      : '';
+
+    const subject = alert.escalationLevel && alert.escalationLevel > 0
+      ? `[${alertLabel} - ESCALATED LEVEL ${alert.escalationLevel}] ${alert.watcherName}`
+      : `[${alertLabel}] ${alert.watcherName}`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${alertLabel}</title>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; color: #333; background-color: #f4f4f4; margin: 0; padding: 0; }
+    .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); overflow: hidden; }
+    .header { background: ${alertColor}; padding: 30px 20px; text-align: center; color: #ffffff; }
+    .header h1 { margin: 0; font-size: 28px; font-weight: 600; }
+    .content { padding: 40px 30px; }
+    .alert-details { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 6px; padding: 20px; margin: 20px 0; }
+    .alert-details p { margin: 10px 0; color: #374151; }
+    .alert-details strong { color: #1f2937; display: inline-block; min-width: 160px; }
+    .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e0e0e0; font-size: 14px; color: #777; }
+    .button { display: inline-block; padding: 14px 32px; background: ${alertColor}; color: #ffffff; text-decoration: none; border-radius: 6px; font-weight: 500; margin: 20px 0; }
+    .copyright { text-align: center; padding: 20px; background-color: #f9f9f9; color: #999; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div style="font-size: 32px; font-weight: 700; margin-bottom: 5px;">OmniTrackr</div>
+      <h1>${alertLabel}</h1>
+    </div>
+    <div class="content">
+      ${escalationNote}
+      <h2 style="color: #1f2937; margin-bottom: 20px;">Alert Notification</h2>
+      <div class="alert-details">
+        <p><strong>Watcher:</strong> ${alert.watcherName}</p>
+        ${alert.departmentCode ? `<p><strong>Department:</strong> ${alert.departmentCode}</p>` : ''}
+        <p><strong>Expected Pattern:</strong> ${alert.expectedPattern}</p>
+        <p><strong>Expected At:</strong> ${new Date(alert.expectedAt).toLocaleString()}</p>
+        <p><strong>SLA Deadline:</strong> ${new Date(alert.slaDeadline).toLocaleString()}</p>
+      </div>
+      <div style="background-color: #fef3c7; border-left: 4px solid ${alertColor}; padding: 15px; margin: 20px 0; border-radius: 4px;">
+        <p style="margin: 0; color: #92400e;"><strong>Message:</strong> ${alert.message}</p>
+      </div>
+      <div style="text-align: center;">
+        <a href="${this.appUrl}/alerts" class="button">View Alert Details</a>
+      </div>
+      <div class="footer">
+        <p>This is an automated alert from OmniTrackr SLA monitoring system.</p>
+        <p>Please acknowledge this alert in the system once addressed.</p>
+      </div>
+    </div>
+    <div class="copyright">
+      &copy; ${new Date().getFullYear()} OmniTrackr. All rights reserved.
+    </div>
+  </div>
+</body>
+</html>
+    `.trim();
+
+    await this.sendEmailWithRecipients({
+      to: options.to,
+      cc: options.cc,
+      bcc: options.bcc,
+      subject,
+      html,
+    });
+
+    console.log(`SLA breach alert sent to ${options.to}`);
+  }
+
+  /**
+   * Send email with multiple recipients (CC, BCC support)
+   */
+  private async sendEmailWithRecipients(options: {
+    to: string;
+    cc?: string[];
+    bcc?: string[];
+    subject: string;
+    html: string;
+  }): Promise<void> {
+    const maxRetries = 3;
+    const baseDelay = 1000;
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Email send attempt ${attempt}/${maxRetries} to ${options.to}`);
+
+        const message: any = {
+          From: {
+            Email: this.fromEmail,
+            Name: this.fromName,
+          },
+          To: [{ Email: options.to }],
+          Subject: options.subject,
+          HTMLPart: options.html,
+          TextPart: this.stripHtml(options.html),
+        };
+
+        // Add CC if provided
+        if (options.cc && options.cc.length > 0) {
+          message.Cc = options.cc.map(email => ({ Email: email }));
+        }
+
+        // Add BCC if provided
+        if (options.bcc && options.bcc.length > 0) {
+          message.Bcc = options.bcc.map(email => ({ Email: email }));
+        }
+
+        const request = this.getMailjetClient()
+          .post('send', { version: 'v3.1' })
+          .request({
+            Messages: [message],
+          });
+
+        const result = await request;
+
+        if (result.response.status !== 200) {
+          console.error('Mailjet API error:', result.body);
+          throw new Error(`Mailjet API returned status ${result.response.status}`);
+        }
+
+        console.log(`Email sent successfully via Mailjet API (attempt ${attempt})`);
+        return;
+      } catch (error: any) {
+        const isLastAttempt = attempt === maxRetries;
+        const isRetryable =
+          error.code === 'ECONNRESET' ||
+          error.code === 'ETIMEDOUT' ||
+          error.code === 'ENOTFOUND' ||
+          error.code === 'EAI_AGAIN' ||
+          (error.statusCode >= 500 && error.statusCode < 600);
+
+        console.error(`Failed to send email (attempt ${attempt}/${maxRetries}):`, {
+          code: error.code,
+          message: error.message,
+          statusCode: error.statusCode,
+          isRetryable,
+        });
+
+        if (isLastAttempt || !isRetryable) {
+          throw new Error(
+            `Failed to send email: ${error.code} - ${error.message}`
+          );
+        }
+
+        const delay = baseDelay * Math.pow(2, attempt - 1);
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  /**
    * Send generic email using Mailjet REST API with retry logic
    */
   private async sendEmail(options: {
@@ -252,7 +459,7 @@ export class EmailService {
       try {
         console.log(`Email send attempt ${attempt}/${maxRetries} to ${options.to}`);
 
-        const request = this.mailjet
+        const request = this.getMailjetClient()
           .post('send', { version: 'v3.1' })
           .request({
             Messages: [
@@ -463,7 +670,7 @@ export class EmailService {
   async verifyConnection(): Promise<boolean> {
     try {
       // Test connection by making a simple API call
-      const request = this.mailjet
+      const request = this.getMailjetClient()
         .get('sender', { version: 'v3' })
         .request();
 

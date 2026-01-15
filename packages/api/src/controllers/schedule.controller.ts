@@ -10,7 +10,7 @@ import { AuthenticatedRequest } from '../middleware/auth.middleware';
 /**
  * Schedule Controller
  * Handles HTTP requests for schedule management
- * Schedules are shared resources across organizations
+ * Schedules are organization-scoped resources
  */
 export class ScheduleController {
   private service: ScheduleService;
@@ -24,9 +24,11 @@ export class ScheduleController {
    */
   getAll = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { page, limit, frequency_type, enabled } = req.query;
 
       const result = await this.service.getAll(
+        authReq.user.organizationId!,
         Number(page) || 1,
         Number(limit) || 20,
         {
@@ -50,8 +52,9 @@ export class ScheduleController {
    */
   getById = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const schedule = await this.service.getWithExclusions(Number(id));
+      const schedule = await this.service.getWithExclusions(authReq.user.organizationId!, Number(id));
 
       res.status(200).json({
         success: true,
@@ -71,7 +74,7 @@ export class ScheduleController {
       const createRequest: CreateScheduleRequest = req.body;
       const createdBy = authReq.user.id.toString();
 
-      const schedule = await this.service.create(createRequest, createdBy);
+      const schedule = await this.service.create(authReq.user.organizationId!, createRequest, createdBy);
 
       res.status(201).json({
         success: true,
@@ -93,7 +96,7 @@ export class ScheduleController {
       const updateRequest: UpdateScheduleRequest = req.body;
       const updatedBy = authReq.user.id.toString();
 
-      const schedule = await this.service.update(Number(id), updateRequest, updatedBy);
+      const schedule = await this.service.update(authReq.user.organizationId!, Number(id), updateRequest, updatedBy);
 
       res.status(200).json({
         success: true,
@@ -110,8 +113,9 @@ export class ScheduleController {
    */
   delete = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      await this.service.delete(Number(id));
+      await this.service.delete(authReq.user.organizationId!, Number(id));
 
       res.status(200).json({
         success: true,
@@ -127,10 +131,11 @@ export class ScheduleController {
    */
   toggleEnabled = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
       const { enabled } = req.body;
 
-      const schedule = await this.service.toggleEnabled(Number(id), enabled);
+      const schedule = await this.service.toggleEnabled(authReq.user.organizationId!, Number(id), enabled);
 
       res.status(200).json({
         success: true,
@@ -147,7 +152,8 @@ export class ScheduleController {
    */
   getActive = async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const schedules = await this.service.getActive();
+      const authReq = req as AuthenticatedRequest;
+      const schedules = await this.service.getActive(authReq.user.organizationId!);
 
       res.status(200).json({
         success: true,
@@ -165,8 +171,9 @@ export class ScheduleController {
    */
   getExclusions = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { id } = req.params;
-      const exclusions = await this.service.getExclusions(Number(id));
+      const exclusions = await this.service.getExclusions(authReq.user.organizationId!, Number(id));
 
       res.status(200).json({
         success: true,
@@ -188,6 +195,7 @@ export class ScheduleController {
       const createdBy = authReq.user.id.toString();
 
       const exclusion = await this.service.addExclusion(
+        authReq.user.organizationId!,
         { ...exclusionRequest, schedule_id: Number(id) },
         createdBy
       );
@@ -207,8 +215,9 @@ export class ScheduleController {
    */
   deleteExclusion = async (req: Request, res: Response, next: NextFunction) => {
     try {
+      const authReq = req as AuthenticatedRequest;
       const { exclusionId } = req.params;
-      await this.service.deleteExclusion(Number(exclusionId));
+      await this.service.deleteExclusion(authReq.user.organizationId!, Number(exclusionId));
 
       res.status(200).json({
         success: true,

@@ -88,8 +88,10 @@ export function UserInviteSheet({ open, onOpenChange, onSuccess }: UserInviteShe
   const onSubmit = (values: InviteFormValues) => {
     const data = {
       email: values.email,
+      firstName: values.first_name,
+      lastName: values.last_name,
       role: values.role as UserRole,
-      departmentIds: values.department_ids, // Transform to camelCase for backend
+      departmentIds: values.department_ids,
     };
 
     inviteMutation.mutate(data);

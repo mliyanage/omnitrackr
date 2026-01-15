@@ -38,5 +38,8 @@ export type {
 // Dashboard types
 export * from './dashboard.types';
 
+// Alert configuration types
+export * from './alert.types';
+
 // export * from './notification.types'; // TODO: Add later
 // export * from './user.types'; // TODO: Add later

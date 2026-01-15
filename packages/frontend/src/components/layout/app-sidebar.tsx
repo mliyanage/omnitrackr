@@ -3,7 +3,7 @@ import {
   LayoutDashboard,
   Database,
   FileSearch,
-  Bell,
+  BellRing,
   Settings,
   Users,
   Eye,
@@ -59,9 +59,9 @@ const navItems = [
     icon: FileSearch,
   },
   {
-    title: 'Notifications',
-    href: '/notifications',
-    icon: Bell,
+    title: 'Alerts',
+    href: '/alerts',
+    icon: BellRing,
   },
   {
     title: 'Users',

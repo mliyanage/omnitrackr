@@ -11,10 +11,14 @@ import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 export function createApp(): Application {
   const app = express();
 
+  // Debug: Log CORS configuration
+  const corsOrigin = process.env.CORS_ORIGIN || '*';
+  console.log(`🔧 CORS Origin: ${corsOrigin}`);
+
   // Security middleware
   app.use(helmet()); // Sets security headers
   app.use(cors({
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: corsOrigin,
     credentials: true,
   }));
 

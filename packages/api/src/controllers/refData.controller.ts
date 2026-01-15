@@ -133,22 +133,6 @@ export class RefDataController {
   // Convenience endpoints
 
   /**
-   * GET /api/ref-data/departments
-   */
-  getDepartments = async (req: Request, res: Response, next: NextFunction) => {
-    try {
-      const departments = await this.service.getDepartments();
-
-      res.status(200).json({
-        success: true,
-        data: departments,
-      });
-    } catch (error) {
-      next(error);
-    }
-  };
-
-  /**
    * GET /api/ref-data/timezones
    */
   getTimezones = async (req: Request, res: Response, next: NextFunction) => {

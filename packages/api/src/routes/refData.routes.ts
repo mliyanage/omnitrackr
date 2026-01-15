@@ -25,13 +25,6 @@ router.get('/search', refDataController.search);
 router.get('/categories', refDataController.getCategories);
 
 /**
- * @route   GET /api/ref-data/departments
- * @desc    Get all departments
- * @access  Private
- */
-router.get('/departments', refDataController.getDepartments);
-
-/**
  * @route   GET /api/ref-data/timezones
  * @desc    Get all timezones
  * @access  Private

@@ -25,7 +25,7 @@ export const listUsers = async (): Promise<ApiResponse<UserWithDepartments[]>> =
  * Get a specific user by ID
  */
 export const getUser = async (id: number): Promise<ApiResponse<UserWithDepartments>> => {
-  const response = await apiClient.get<ApiResponse<UserWithDepartments>>(`/api/users/${id}`);
+  const response = await apiClient.get<ApiResponse<UserWithDepartments>>(`/users/${id}`);
   return response.data;
 };
 
@@ -49,7 +49,7 @@ export const updateUser = async (
   data: UpdateUserRequest
 ): Promise<ApiResponse<UserWithDepartments>> => {
   const response = await apiClient.patch<ApiResponse<UserWithDepartments>>(
-    `/api/users/${id}`,
+    `/users/${id}`,
     data
   );
   return response.data;
@@ -60,7 +60,7 @@ export const updateUser = async (
  * Only accessible by owners
  */
 export const deactivateUser = async (id: number): Promise<ApiResponse<void>> => {
-  const response = await apiClient.delete<ApiResponse<void>>(`/api/users/${id}`);
+  const response = await apiClient.delete<ApiResponse<void>>(`/users/${id}`);
   return response.data;
 };
 
@@ -72,7 +72,7 @@ export const assignDepartments = async (
   userId: number,
   departmentIds: number[]
 ): Promise<ApiResponse<void>> => {
-  const response = await apiClient.post<ApiResponse<void>>(`/api/users/${userId}/departments`, {
+  const response = await apiClient.post<ApiResponse<void>>(`/users/${userId}/departments`, {
     departmentIds,
   });
   return response.data;

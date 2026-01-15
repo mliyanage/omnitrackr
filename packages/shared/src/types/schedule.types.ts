@@ -12,6 +12,7 @@ export type ExclusionType = 'specific_date' | 'date_range' | 'holiday_calendar';
  */
 export interface Schedule {
   id: number;
+  organization_id: number;
   name: string;
   description?: string | null;
 

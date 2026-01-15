@@ -25,14 +25,16 @@ import { AuthService } from './auth.service';
 
 export interface InviteUserRequest {
   email: string;
+  firstName: string;
+  lastName: string;
   role: 'owner' | 'editor' | 'viewer';
   departmentIds?: number[];
 }
 
 export interface AcceptInvitationRequest {
   token: string;
-  firstName: string;
-  lastName: string;
+  firstName?: string; // Optional - will use invitation's first_name if not provided
+  lastName?: string; // Optional - will use invitation's last_name if not provided
   password: string;
 }
 
@@ -46,6 +48,9 @@ export interface UpdateUserRequest {
   firstName?: string;
   lastName?: string;
   email?: string;
+  phone?: string;
+  timezone?: string;
+  locale?: string;
   role?: 'owner' | 'editor' | 'viewer';
   status?: 'active' | 'suspended' | 'deactivated';
 }
@@ -68,24 +73,63 @@ export class UserService {
   }
 
   /**
-   * Get all users for an organization
+   * Get all users for an organization with their department assignments
    */
-  async getUsersByOrganization(organizationId: number): Promise<User[]> {
+  async getUsersByOrganization(organizationId: number): Promise<any[]> {
     const users = await this.userRepo.findByOrganization(organizationId);
-    return users;
+
+    // Fetch departments for each user
+    const usersWithDepartments = await Promise.all(
+      users.map(async (user) => {
+        const departments = await db('user_departments')
+          .join('departments', 'user_departments.department_id', 'departments.id')
+          .where('user_departments.user_id', user.id)
+          .where('departments.deleted_at', null)
+          .select(
+            'departments.id',
+            'departments.name',
+            'departments.code',
+            'departments.description',
+            'departments.status'
+          );
+
+        return {
+          ...user,
+          departments,
+        };
+      })
+    );
+
+    return usersWithDepartments;
   }
 
   /**
-   * Get user by ID
+   * Get user by ID with department assignments
    */
-  async getById(id: number): Promise<User> {
+  async getById(id: number): Promise<any> {
     const user = await this.userRepo.findById<User>(id);
 
     if (!user || user.deleted_at) {
       throw new NotFoundError('User', id);
     }
 
-    return user;
+    // Fetch departments for the user
+    const departments = await db('user_departments')
+      .join('departments', 'user_departments.department_id', 'departments.id')
+      .where('user_departments.user_id', user.id)
+      .where('departments.deleted_at', null)
+      .select(
+        'departments.id',
+        'departments.name',
+        'departments.code',
+        'departments.description',
+        'departments.status'
+      );
+
+    return {
+      ...user,
+      departments,
+    };
   }
 
   /**
@@ -106,17 +150,20 @@ export class UserService {
 
     const email = data.email.toLowerCase();
 
-    // Check if user already exists
-    const existingUser = await this.userRepo.findByEmail(email);
+    // Check if user already exists IN THIS ORGANIZATION
+    const existingUser = await this.userRepo.findByEmailAndOrganization(email, organizationId);
     if (existingUser && !existingUser.deleted_at) {
-      throw new ValidationError('User with this email already exists');
+      throw new ValidationError('User with this email already exists in your organization');
     }
 
-    // Check if pending invitation exists
-    const pendingInvitations = await this.invitationRepo.findPendingByEmail(email);
+    // Check if pending invitation exists IN THIS ORGANIZATION
+    const pendingInvitations = await this.invitationRepo.findPendingByEmailAndOrganization(
+      email,
+      organizationId
+    );
     if (pendingInvitations.length > 0) {
       throw new ValidationError(
-        'A pending invitation already exists for this email'
+        'A pending invitation already exists for this email in your organization'
       );
     }
 
@@ -138,6 +185,8 @@ export class UserService {
     // Create invitation
     const invitation = await this.invitationRepo.create<UserInvitation>({
       email,
+      first_name: data.firstName,
+      last_name: data.lastName,
       organization_id: organizationId,
       role: data.role,
       department_ids: data.departmentIds ? JSON.stringify(data.departmentIds) : null,
@@ -153,10 +202,48 @@ export class UserService {
       email,
       token,
       organizationName,
-      inviterName
+      inviterName,
+      data.firstName
     );
 
     return invitation;
+  }
+
+  /**
+   * Get invitation details by token (for pre-filling accept form)
+   */
+  async getInvitationByToken(token: string): Promise<Partial<UserInvitation>> {
+    // Hash token and find invitation
+    const tokenHash = hashToken(token);
+    const invitation = await this.invitationRepo.findByToken(tokenHash);
+
+    if (!invitation) {
+      throw new NotFoundError('Invitation', 'token');
+    }
+
+    // Check invitation status
+    if (invitation.status === 'accepted') {
+      throw new ValidationError('This invitation has already been accepted');
+    }
+
+    if (invitation.status === 'expired') {
+      throw new ValidationError('This invitation has expired');
+    }
+
+    // Check expiration
+    if (isTokenExpired(invitation.expires_at)) {
+      await this.invitationRepo.update(invitation.id, { status: 'expired' } as any);
+      throw new ValidationError('This invitation has expired');
+    }
+
+    // Return safe invitation details (no sensitive data)
+    return {
+      email: invitation.email,
+      first_name: invitation.first_name,
+      last_name: invitation.last_name,
+      organization_id: invitation.organization_id,
+      role: invitation.role,
+    };
   }
 
   /**
@@ -202,14 +289,22 @@ export class UserService {
     // Hash password
     const passwordHash = await hashPassword(data.password);
 
+    // Use names from invitation if not provided in request
+    const firstName = (data.firstName || invitation.first_name || '').trim();
+    const lastName = (data.lastName || invitation.last_name || '').trim();
+
+    if (!firstName || !lastName) {
+      throw new ValidationError('First name and last name are required');
+    }
+
     // Create user in transaction
     const user = await db.transaction(async (trx) => {
       // Create user
       const [newUser] = await trx('users')
         .insert({
           email: invitation.email,
-          first_name: data.firstName.trim(),
-          last_name: data.lastName.trim(),
+          first_name: firstName,
+          last_name: lastName,
           password_hash: passwordHash,
           organization_id: invitation.organization_id,
           role: invitation.role,
@@ -287,15 +382,41 @@ export class UserService {
       }
     }
 
-    // Update user
-    const updated = await this.userRepo.update<User>(id, {
-      ...(data.firstName && { first_name: data.firstName.trim() }),
-      ...(data.lastName && { last_name: data.lastName.trim() }),
-      ...(data.email && { email: data.email.toLowerCase() }),
-      ...(data.role && { role: data.role }),
-      ...(data.status && { status: data.status }),
+    // Build update object
+    const updateData: any = {
       updated_by: updatedBy.toString(),
-    } as any);
+      updated_at: db.fn.now(),
+    };
+
+    if (data.firstName !== undefined) {
+      updateData.first_name = data.firstName.trim();
+    }
+    if (data.lastName !== undefined) {
+      updateData.last_name = data.lastName.trim();
+    }
+    if (data.email !== undefined) {
+      updateData.email = data.email.toLowerCase();
+    }
+    if (data.phone !== undefined) {
+      updateData.phone_number = data.phone ? data.phone.trim() : null;
+    }
+    if (data.timezone !== undefined) {
+      updateData.timezone = data.timezone;
+    }
+    if (data.locale !== undefined) {
+      updateData.locale = data.locale;
+    }
+    if (data.role !== undefined) {
+      updateData.role = data.role;
+    }
+    if (data.status !== undefined) {
+      updateData.status = data.status;
+    }
+
+    console.log('Updating user with data:', updateData);
+
+    // Update user
+    const updated = await this.userRepo.update<User>(id, updateData);
 
     return updated;
   }
@@ -367,5 +488,87 @@ export class UserService {
         await trx('user_departments').insert(assignments);
       }
     });
+  }
+
+  /**
+   * Get pending invitations for an organization
+   */
+  async getPendingInvitations(organizationId: number): Promise<UserInvitation[]> {
+    return this.invitationRepo.findPendingByOrganization(organizationId);
+  }
+
+  /**
+   * Resend invitation email
+   */
+  async resendInvitation(
+    invitationId: number,
+    organizationId: number,
+    organizationName: string,
+    inviterName: string
+  ): Promise<UserInvitation> {
+    const invitation = await this.invitationRepo.findById<UserInvitation>(invitationId);
+
+    if (!invitation) {
+      throw new NotFoundError('Invitation', invitationId);
+    }
+
+    // Validate organization ownership
+    if (invitation.organization_id !== organizationId) {
+      throw new UnauthorizedError('Invitation belongs to a different organization');
+    }
+
+    // Check if already accepted
+    if (invitation.status === 'accepted') {
+      throw new ValidationError('This invitation has already been accepted');
+    }
+
+    // Generate new token
+    const token = generateSecureToken();
+    const tokenHash = hashToken(token);
+
+    // Update invitation with new token and expiration
+    await this.invitationRepo.update(invitationId, {
+      token_hash: tokenHash,
+      expires_at: calculateTokenExpiration(7 * 24), // 7 days
+      status: 'pending',
+      updated_at: db.fn.now(),
+    } as any);
+
+    // Send invitation email
+    await this.emailService.sendInvitationEmail(
+      invitation.email,
+      token,
+      organizationName,
+      inviterName
+    );
+
+    return this.invitationRepo.findById<UserInvitation>(invitationId) as Promise<UserInvitation>;
+  }
+
+  /**
+   * Delete/cancel invitation
+   */
+  async deleteInvitation(invitationId: number, organizationId: number): Promise<void> {
+    const invitation = await this.invitationRepo.findById<UserInvitation>(invitationId);
+
+    if (!invitation) {
+      throw new NotFoundError('Invitation', invitationId);
+    }
+
+    // Validate organization ownership
+    if (invitation.organization_id !== organizationId) {
+      throw new UnauthorizedError('Invitation belongs to a different organization');
+    }
+
+    // Check if already accepted
+    if (invitation.status === 'accepted') {
+      throw new ValidationError('Cannot delete an accepted invitation');
+    }
+
+    // Soft delete by marking as expired
+    await this.invitationRepo.update(invitationId, {
+      status: 'expired',
+      updated_at: db.fn.now(),
+    } as any);
   }
 }

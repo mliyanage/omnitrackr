@@ -13,6 +13,7 @@ import departmentsRoutes from './departments.routes';
 import organizationsRoutes from './organizations.routes';
 import adminRoutes from './admin.routes';
 import auditRoutes from './audit.routes';
+import alertsRoutes from './alerts.routes';
 import { authenticate } from '../middleware/auth.middleware';
 import { auditLog } from '../middleware/auditLog.middleware';
 import { userController } from '../controllers/user.controller';
@@ -74,6 +75,7 @@ router.get('/test-mailjet', async (req, res) => {
 router.use('/auth', authRoutes);
 
 // Public user routes (invitation acceptance - no auth required)
+router.get('/users/invitation/:token', userController.getInvitationByToken);
 router.post('/users/accept-invitation', userController.acceptInvitation);
 
 // Protected routes - require authentication and audit logging
@@ -93,6 +95,9 @@ router.use('/admin', authenticate, auditLog(), adminRoutes);
 
 // Security & Audit (Phase 5) - No audit logging on audit routes
 router.use('/audit', authenticate, auditRoutes);
+
+// SLA Breach Alerting (Phase 6)
+router.use('/alerts', authenticate, auditLog(), alertsRoutes);
 
 // TODO: Add more routes as we build them
 // router.use('/watcher-logs', watcherLogRoutes);

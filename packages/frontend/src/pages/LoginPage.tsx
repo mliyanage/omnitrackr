@@ -42,6 +42,10 @@ export default function LoginPage() {
   const location = useLocation();
   const { setAuth } = useAuthStore();
 
+  // Check if redirected due to session expiry
+  const searchParams = new URLSearchParams(location.search);
+  const isSessionExpired = searchParams.get('expired') === 'true';
+
   // Track if 2FA is required
   const [requires2FA, setRequires2FA] = useState(false);
   const [tempToken, setTempToken] = useState('');
@@ -168,6 +172,15 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Session Expiry Alert */}
+          {isSessionExpired && !requires2FA && (
+            <Alert className="mb-4 border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20">
+              <AlertDescription className="text-yellow-800 dark:text-yellow-200">
+                Your session has expired. Please sign in again to continue.
+              </AlertDescription>
+            </Alert>
+          )}
+
           {!requires2FA ? (
             // Login Form
             <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">

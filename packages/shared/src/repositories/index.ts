@@ -27,3 +27,10 @@ export * from './userInvitation.repository';
 // Security & Audit (Phase 5)
 export * from './auditLog.repository';
 export * from './securityEvent.repository';
+
+// Alert Configuration & History
+export * from './alertConfig.repository';
+export * from './alertHistory.repository';
+export * from './alertRecipientGroup.repository';
+export * from './alertEscalation.repository';
+export * from './alertComment.repository';

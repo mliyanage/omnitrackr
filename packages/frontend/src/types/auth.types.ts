@@ -242,14 +242,15 @@ export interface InviteUserResponse {
  * Update user request
  */
 export interface UpdateUserRequest {
-  first_name?: string;
-  last_name?: string;
+  firstName?: string;
+  lastName?: string;
+  email?: string;
   phone?: string;
   timezone?: string;
   locale?: string;
   role?: UserRole;
   status?: UserStatus;
-  department_ids?: number[];
+  departmentIds?: number[];
 }
 
 /**

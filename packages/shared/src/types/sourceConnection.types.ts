@@ -76,6 +76,7 @@ export type SourceConnectionConfig =
  */
 export interface SourceConnection {
   id: number;
+  organization_id: number;
   name: string;
   type: SourceType;
   description?: string | null;

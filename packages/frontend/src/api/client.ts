@@ -1,6 +1,7 @@
 import axios, { AxiosError, type InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../stores/authStore';
 import type { ApiResponse, RefreshTokenResponse } from '../types';
+import { queryClient } from '@/lib/queryClient';
 
 const API_URL = import.meta.env.VITE_API_URL;
 
@@ -13,6 +14,7 @@ export const apiClient = axios.create({
     'Content-Type': 'application/json',
   },
   timeout: 30000, // 30 seconds
+  withCredentials: true, // Required for CORS with credentials
 });
 
 /**
@@ -54,6 +56,7 @@ const refreshAccessToken = async (): Promise<string> => {
     const refreshClient = axios.create({
       baseURL: API_URL,
       headers: { 'Content-Type': 'application/json' },
+      withCredentials: true,
     });
 
     const response = await refreshClient.post<ApiResponse<RefreshTokenResponse>>(
@@ -72,7 +75,8 @@ const refreshAccessToken = async (): Promise<string> => {
 
     throw new Error('Failed to refresh token');
   } catch (error) {
-    // Clear auth state and redirect to login
+    // Clear auth state and React Query cache, then redirect to login
+    // clearAuth() will also clear the queryClient cache
     useAuthStore.getState().clearAuth();
     window.location.href = '/login';
     throw error;
@@ -153,6 +157,19 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError as Error, null);
+
+        // Clear auth state and redirect to login
+        // This handles cases where refreshAccessToken didn't redirect
+        useAuthStore.getState().clearAuth();
+
+        // Show notification to user
+        if (typeof window !== 'undefined') {
+          // Only redirect if not already on login page
+          if (!window.location.pathname.includes('/login')) {
+            window.location.href = '/login?expired=true';
+          }
+        }
+
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;

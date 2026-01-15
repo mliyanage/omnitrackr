@@ -23,6 +23,8 @@ export interface Watcher {
   // Foreign Keys
   source_connection_id: number;
   schedule_id?: number | null;
+  organization_id?: number | null;
+  department_id?: number | null;
   department_code?: string | null;
 
   // Watcher Identity
