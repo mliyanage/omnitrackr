@@ -15,7 +15,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MoreHorizontal, Pencil, Trash2, Power, PowerOff } from 'lucide-react';
+import { MoreHorizontal, Pencil, Trash2, Power, PowerOff, Eye } from 'lucide-react';
 import { deleteAlertConfig, updateAlertConfig } from '@/api/alerts.api';
 import { showSuccess, showError } from '@/lib/toast';
 import type { AlertConfig, AlertType } from '@/types';
@@ -23,6 +23,7 @@ import type { AlertConfig, AlertType } from '@/types';
 interface AlertConfigTableProps {
   configs: AlertConfig[];
   onEdit: (config: AlertConfig) => void;
+  onView: (config: AlertConfig) => void;
   isLoading: boolean;
   isViewer: boolean;
 }
@@ -41,6 +42,7 @@ const alertTypeLabels: Record<AlertType, string> = {
 export function AlertConfigTable({
   configs,
   onEdit,
+  onView,
   isLoading,
   isViewer,
 }: AlertConfigTableProps) {
@@ -109,7 +111,7 @@ export function AlertConfigTable({
           <TableHead>Recipients</TableHead>
           <TableHead>Escalations</TableHead>
           <TableHead>Status</TableHead>
-          {!isViewer && <TableHead className="text-right">Actions</TableHead>}
+          <TableHead className="text-right">Actions</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -169,43 +171,49 @@ export function AlertConfigTable({
                   {config.enabled ? 'Enabled' : 'Disabled'}
                 </Badge>
               </TableCell>
-              {!isViewer && (
-                <TableCell className="text-right">
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="sm">
-                        <MoreHorizontal className="h-4 w-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                      <DropdownMenuItem onClick={() => onEdit(config)}>
-                        <Pencil className="mr-2 h-4 w-4" />
-                        Edit
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => handleToggleEnabled(config)}>
-                        {config.enabled ? (
-                          <>
-                            <PowerOff className="mr-2 h-4 w-4" />
-                            Disable
-                          </>
-                        ) : (
-                          <>
-                            <Power className="mr-2 h-4 w-4" />
-                            Enable
-                          </>
-                        )}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => handleDelete(config.id)}
-                        className="text-destructive"
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete
-                      </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </TableCell>
-              )}
+              <TableCell className="text-right">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" size="sm">
+                      <MoreHorizontal className="h-4 w-4" />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => onView(config)}>
+                      <Eye className="mr-2 h-4 w-4" />
+                      View
+                    </DropdownMenuItem>
+                    {!isViewer && (
+                      <>
+                        <DropdownMenuItem onClick={() => onEdit(config)}>
+                          <Pencil className="mr-2 h-4 w-4" />
+                          Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleToggleEnabled(config)}>
+                          {config.enabled ? (
+                            <>
+                              <PowerOff className="mr-2 h-4 w-4" />
+                              Disable
+                            </>
+                          ) : (
+                            <>
+                              <Power className="mr-2 h-4 w-4" />
+                              Enable
+                            </>
+                          )}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          onClick={() => handleDelete(config.id)}
+                          className="text-destructive"
+                        >
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </TableCell>
             </TableRow>
           );
         })}

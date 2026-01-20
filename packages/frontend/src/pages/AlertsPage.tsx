@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AlertConfigTable } from '@/components/alerts/AlertConfigTable';
 import { AlertHistoryTable } from '@/components/alerts/AlertHistoryTable';
 import { AlertConfigSheet } from '@/components/alerts/AlertConfigSheet';
+import { AlertConfigViewSheet } from '@/components/alerts/AlertConfigViewSheet';
 import { RecipientGroupSheet } from '@/components/alerts/RecipientGroupSheet';
 import {
   getAlertConfigs,
@@ -21,6 +22,8 @@ export default function AlertsPage() {
   const [activeTab, setActiveTab] = useState('configurations');
   const [selectedConfig, setSelectedConfig] = useState<AlertConfig | undefined>();
   const [isConfigSheetOpen, setIsConfigSheetOpen] = useState(false);
+  const [isViewSheetOpen, setIsViewSheetOpen] = useState(false);
+  const [viewConfig, setViewConfig] = useState<AlertConfig | undefined>();
   const [isRecipientGroupSheetOpen, setIsRecipientGroupSheetOpen] = useState(false);
   const [selectedRecipientGroup, setSelectedRecipientGroup] = useState<
     AlertRecipientGroup | undefined
@@ -55,6 +58,11 @@ export default function AlertsPage() {
   const handleEditConfig = (config: AlertConfig) => {
     setSelectedConfig(config);
     setIsConfigSheetOpen(true);
+  };
+
+  const handleViewConfig = (config: AlertConfig) => {
+    setViewConfig(config);
+    setIsViewSheetOpen(true);
   };
 
   const handleCreateRecipientGroup = () => {
@@ -138,6 +146,7 @@ export default function AlertsPage() {
             <AlertConfigTable
               configs={alertConfigs}
               onEdit={handleEditConfig}
+              onView={handleViewConfig}
               isLoading={isLoadingConfigs}
               isViewer={isViewer}
             />
@@ -227,6 +236,13 @@ export default function AlertsPage() {
         open={isConfigSheetOpen}
         onOpenChange={setIsConfigSheetOpen}
         config={selectedConfig}
+        recipientGroups={recipientGroups}
+      />
+
+      <AlertConfigViewSheet
+        open={isViewSheetOpen}
+        onOpenChange={setIsViewSheetOpen}
+        config={viewConfig}
         recipientGroups={recipientGroups}
       />
 
