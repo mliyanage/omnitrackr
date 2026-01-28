@@ -9,8 +9,8 @@ terraform {
   }
 
   # Store Terraform state in GCS bucket for team collaboration
+  # Bucket provided via: terraform init -backend-config="bucket=BUCKET_NAME"
   backend "gcs" {
-    bucket = "omnitrackr-terraform-state"
     prefix = "staging"
   }
 }

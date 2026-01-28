@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "GCP Project ID"
   type        = string
-  default     = "omnitrackr-staging"
+  default     = "omnitrackr-staging-v2"
 }
 
 variable "region" {

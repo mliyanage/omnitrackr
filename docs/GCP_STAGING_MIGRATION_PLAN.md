@@ -90,21 +90,16 @@ gcloud dns record-sets list --zone=<your-dns-zone-name> --project=omnitrackr-sta
 
 Since you already have a new Google account ready, log into GCP Console with it and activate the free trial if not done already.
 
-#### Step 2.1 - Create New GCP Project
+#### Step 2.1 - Create New GCP Project (COMPLETED)
+
+Project and billing already set up:
+
+- **Project ID:** `omnitrackr-staging-v2`
+- **Billing Account:** `011903-BCD685-D21304`
 
 ```bash
-# Log in with the new account
-gcloud auth login  # Use the NEW Google account
-
-# Create new project (choose a unique project ID)
-gcloud projects create omnitrackr-staging-v2 --name="OmniTrackr Staging V2"
-
 # Set as active project
 gcloud config set project omnitrackr-staging-v2
-
-# Link billing account (the free trial billing account)
-# You can find the billing account ID in the GCP Console under Billing
-gcloud billing projects link omnitrackr-staging-v2 --billing-account=<NEW_BILLING_ACCOUNT_ID>
 ```
 
 #### Step 2.3 - Enable Required APIs
@@ -142,22 +137,26 @@ gsutil versioning set on gs://omnitrackr-terraform-state-v2
 
 #### Step 2.6 - Create Service Account for GitHub Actions
 
+Roles pulled from the old account's `github-actions-deployer@` service account, plus
+`roles/storage.admin` needed for frontend deployment (`gsutil rsync` to bucket).
+
+> **Note:** The Cloud Run service account (`omnitrackr-staging@`) roles
+> (`roles/cloudsql.client`, `roles/logging.logWriter`, `roles/monitoring.metricWriter`,
+> `roles/secretmanager.secretAccessor`) are managed by Terraform in `iam.tf` and will be
+> created automatically during `terraform apply`. Only the GitHub Actions SA needs manual setup.
+
 ```bash
 # Create service account
-gcloud iam service-accounts create github-actions \
+gcloud iam service-accounts create github-actions-deployer \
   --display-name="GitHub Actions Deployer" \
   --description="Service account for CI/CD deployments"
 
-# Grant required roles
-SA_EMAIL="github-actions@omnitrackr-staging-v2.iam.gserviceaccount.com"
+SA_EMAIL="github-actions-deployer@omnitrackr-staging-v2.iam.gserviceaccount.com"
 
+# Roles matching old account (from: gcloud projects get-iam-policy --filter)
 gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/run.admin"
-
-gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/storage.admin"
 
 gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
   --member="serviceAccount:${SA_EMAIL}" \
@@ -167,13 +166,10 @@ gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
   --member="serviceAccount:${SA_EMAIL}" \
   --role="roles/iam.serviceAccountUser"
 
+# Additional role needed for frontend deployment (gsutil rsync to bucket)
 gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
   --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/secretmanager.secretAccessor"
-
-gcloud projects add-iam-policy-binding omnitrackr-staging-v2 \
-  --member="serviceAccount:${SA_EMAIL}" \
-  --role="roles/cloudscheduler.admin"
+  --role="roles/storage.admin"
 
 # Generate key file
 gcloud iam service-accounts keys create ~/github-actions-key.json \
@@ -183,57 +179,80 @@ gcloud iam service-accounts keys create ~/github-actions-key.json \
 cat ~/github-actions-key.json
 ```
 
+**Role summary for GitHub Actions SA:**
+
+| Role | Purpose | Source |
+|------|---------|--------|
+| `roles/run.admin` | Deploy Cloud Run services and jobs | Old account |
+| `roles/artifactregistry.writer` | Push Docker images | Old account |
+| `roles/iam.serviceAccountUser` | Act as Cloud Run service account | Old account |
+| `roles/storage.admin` | Deploy frontend to Cloud Storage bucket | New (needed for `gsutil rsync`) |
+
 ---
 
 ### Phase 3: Update Terraform Configuration
 
-#### Step 3.1 - Update `terraform.tfvars`
+The key design decision here is to use **partial backend configuration** and **separate `.tfvars` files**
+so you can target different GCP projects without editing Terraform source files. This same pattern
+also works for managing staging and production from a single Terraform directory later on.
 
-**File:** `infrastructure/terraform/staging/terraform.tfvars`
-
-Change `project_id` to the new project ID:
-
-```hcl
-project_id  = "omnitrackr-staging-v2"   # <-- NEW PROJECT ID
-region      = "us-central1"
-environment = "staging"
-```
-
-#### Step 3.2 - Update Terraform Backend
+#### Step 3.1 - Switch to Partial Backend Configuration
 
 **File:** `infrastructure/terraform/staging/main.tf`
 
-Update the backend bucket name:
+Remove the hardcoded bucket name. The bucket will be provided via `-backend-config` at init time:
 
 ```hcl
 terraform {
   backend "gcs" {
-    bucket = "omnitrackr-terraform-state-v2"   # <-- NEW BUCKET
     prefix = "staging"
+    # bucket provided via: terraform init -backend-config="bucket=BUCKET_NAME"
   }
 }
+```
+
+#### Step 3.2 - Create New `.tfvars` File, Keep Old One
+
+Rename the current file and create the new one:
+
+```bash
+cd infrastructure/terraform/staging
+cp terraform.tfvars terraform.tfvars.old    # preserve old project config for cleanup
+```
+
+**File:** `infrastructure/terraform/staging/terraform.tfvars` (update for new project)
+
+```hcl
+project_id  = "omnitrackr-staging-v2"
+region      = "us-central1"
+environment = "staging"
+```
+
+**File:** `infrastructure/terraform/staging/terraform.tfvars.old` (preserved for Phase 7 cleanup)
+
+```hcl
+project_id  = "omnitrackr-staging"
+region      = "us-central1"
+environment = "staging"
 ```
 
 #### Step 3.3 - Update `variables.tf` Default
 
 **File:** `infrastructure/terraform/staging/variables.tf`
 
-Update the default project_id:
+Update the default project_id to match the new project:
 
 ```hcl
 variable "project_id" {
   description = "GCP Project ID"
-  default     = "omnitrackr-staging-v2"   # <-- NEW PROJECT ID
+  default     = "omnitrackr-staging-v2"
 }
 ```
 
-#### Step 3.4 - Disable Deletion Protection on Cloud SQL (temporarily)
+> **Note:** This default is overridden by whichever `.tfvars` file you use, but keeping it
+> in sync with the active project avoids confusion.
 
-**File:** `infrastructure/terraform/staging/cloud_sql.tf`
-
-The Cloud SQL instance has `deletion_protection = true`. This is fine for the new project. But for the OLD project cleanup (Phase 7), you'll need to set it to `false` before destroying.
-
-#### Step 3.5 - Initialize and Apply Terraform
+#### Step 3.4 - Initialize and Apply Terraform
 
 ```bash
 cd infrastructure/terraform/staging
@@ -241,11 +260,11 @@ cd infrastructure/terraform/staging
 # Authenticate with the new GCP account
 gcloud auth application-default login   # Use NEW account
 
-# Re-initialize Terraform (new backend)
+# Re-initialize Terraform with new backend bucket
 rm -rf .terraform .terraform.lock.hcl
-terraform init
+terraform init -backend-config="bucket=omnitrackr-terraform-state-v2"
 
-# Preview the changes
+# Preview the changes (uses terraform.tfvars by default)
 terraform plan
 
 # Apply (creates all resources in the new project)
@@ -256,6 +275,22 @@ terraform apply
 # Note the outputs
 terraform output
 ```
+
+> **How switching works:** To target a different project, you re-init with a different
+> `-backend-config` and use `-var-file` to load different variables. No file editing needed:
+>
+> ```bash
+> # Target new project (day-to-day)
+> terraform init -backend-config="bucket=omnitrackr-terraform-state-v2"
+> terraform plan                                # uses terraform.tfvars
+>
+> # Target old project (one-time cleanup)
+> terraform init -backend-config="bucket=omnitrackr-terraform-state" -reconfigure
+> terraform destroy -var-file="terraform.tfvars.old"
+> ```
+>
+> This same pattern scales to production: create `terraform.tfvars.prod` and a separate
+> state bucket, and manage both environments from the same Terraform directory.
 
 ---
 
@@ -427,76 +462,70 @@ gcloud run services update omnitrackr-api-staging \
   --region=us-central1
 ```
 
-#### Step 7.3 - Destroy Terraform Resources
+#### Step 7.3 - Destroy Old Resources with Terraform
 
-Since Cloud DNS is managed outside Terraform (via GCP Console), `terraform destroy` will not touch your DNS zone.
+Thanks to the partial backend config and separate `.tfvars` files set up in Phase 3, we can
+point Terraform at the old project's state and destroy everything — no file editing required.
 
 ```bash
-# Switch auth to old account
-gcloud auth application-default login   # Use OLD account
+cd infrastructure/terraform/staging
+
+# Authenticate with the OLD GCP account
+gcloud auth application-default login   # Use OLD Google account
 gcloud config set project omnitrackr-staging
 
-# Temporarily point terraform back to the OLD backend
-cd infrastructure/terraform/staging
-# Edit main.tf backend to: bucket = "omnitrackr-terraform-state"
-# Edit terraform.tfvars to: project_id = "omnitrackr-staging"
-# Edit variables.tf default to: "omnitrackr-staging"
-
-rm -rf .terraform
-terraform init
+# Re-initialize Terraform against the OLD state bucket
+rm -rf .terraform .terraform.lock.hcl
+terraform init -backend-config="bucket=omnitrackr-terraform-state" -reconfigure
 
 # First, disable deletion protection on Cloud SQL
-# Edit cloud_sql.tf: change deletion_protection = true to false
-terraform apply -target=google_sql_database_instance.postgres
+# Temporarily edit cloud_sql.tf: change deletion_protection = true to false
+# Then apply just that change against the old project:
+terraform apply -var-file="terraform.tfvars.old" -target=google_sql_database_instance.postgres
 
-# Now destroy all Terraform-managed resources
-terraform destroy
+# Now destroy all Terraform-managed resources in the old project
+terraform destroy -var-file="terraform.tfvars.old"
 # Type 'yes' when prompted
-# DNS zone is safe - it's not managed by Terraform
 ```
 
-#### Step 7.4 - Manual Cleanup (if Terraform doesn't cover everything)
+> **DNS zone is safe** — Cloud DNS is not managed by Terraform, so `terraform destroy`
+> will not touch the DNS zone for `omnitrackr.dev`.
+
+#### Step 7.4 - Switch Terraform Back to New Project
 
 ```bash
-# Delete Artifact Registry images
-gcloud artifacts repositories delete omnitrackr \
-  --location=us-central1 --quiet
+# Revert the deletion_protection change in cloud_sql.tf back to true
 
-# Delete Terraform state bucket
+# Re-initialize against the NEW state bucket
+rm -rf .terraform .terraform.lock.hcl
+terraform init -backend-config="bucket=omnitrackr-terraform-state-v2"
+
+# Verify everything is intact
+terraform plan
+# Should show "No changes. Your infrastructure matches the configuration."
+```
+
+#### Step 7.5 - Clean Up Old State Bucket and Local Files
+
+```bash
+# Delete the old Terraform state bucket (no longer needed)
 gsutil rm -r gs://omnitrackr-terraform-state
 
-# Delete any remaining resources visible in GCP Console
-```
-
-#### Step 7.5 - Revert Terraform Files for New Account
-
-After destroying old resources, update Terraform files back to the new project:
-
-```bash
-# Edit main.tf backend back to: bucket = "omnitrackr-terraform-state-v2"
-# Edit terraform.tfvars back to: project_id = "omnitrackr-staging-v2"
-# Edit variables.tf default back to: "omnitrackr-staging-v2"
-
-# Re-init for new project
-rm -rf .terraform
-terraform init
-```
-
-#### Step 7.6 - Clean Up Local Files
-
-```bash
 # Delete the service account key
 rm ~/github-actions-key.json
 
 # Delete the temporary secrets file
 rm /tmp/old-secrets.txt
+
+# Optional: remove the old tfvars file now that cleanup is done
+rm infrastructure/terraform/staging/terraform.tfvars.old
 ```
 
 ---
 
 ## Important Notes
 
-1. **Cloud DNS stays in old account** - DNS is managed via GCP Console (not Terraform), so `terraform destroy` won't touch it. The old account's DNS zone will continue to work even after the free trial expires (DNS is very cheap, ~$0.20/month per zone). You can move it to GoDaddy later at your convenience.
+1. **Cloud DNS stays in old account** - DNS is managed via GCP Console (not Terraform), so `terraform destroy` in Phase 7 will not touch it. The zone will continue to work even after the free trial expires (DNS is very cheap, ~$0.20/month per zone). You can move it to GoDaddy later at your convenience.
 
 2. **Database migration** - All application data (watchers, connections, schedules, users, etc.) will be preserved through pg_dump/pg_restore. User passwords stored in the DB are safe.
 
@@ -518,10 +547,37 @@ rm /tmp/old-secrets.txt
 
 ## Files Changed (Phase 3)
 
-These are the Terraform files that need updating for the new project:
-
 | File | Change |
 |------|--------|
-| `infrastructure/terraform/staging/main.tf` | Backend bucket: `omnitrackr-terraform-state` -> `omnitrackr-terraform-state-v2` |
+| `infrastructure/terraform/staging/main.tf` | Remove hardcoded bucket; use partial backend config (`-backend-config` at init time) |
 | `infrastructure/terraform/staging/terraform.tfvars` | project_id: `omnitrackr-staging` -> `omnitrackr-staging-v2` |
+| `infrastructure/terraform/staging/terraform.tfvars.old` | **New file** — copy of original `terraform.tfvars` before changes (for Phase 7 cleanup) |
 | `infrastructure/terraform/staging/variables.tf` | Default project_id: `omnitrackr-staging` -> `omnitrackr-staging-v2` |
+
+## Multi-Environment Pattern
+
+The partial backend config + separate `.tfvars` approach used for this migration is the same
+pattern you can use to manage **staging and production from a single Terraform directory**:
+
+```bash
+infrastructure/terraform/staging/
+  main.tf                  # Shared config (no hardcoded bucket)
+  variables.tf             # Shared variable definitions
+  terraform.tfvars         # Staging values (active)
+  terraform.tfvars.prod    # Production values (future)
+  terraform.tfvars.old     # Old project values (cleanup, then delete)
+  *.tf                     # Shared resource definitions
+```
+
+```bash
+# Deploy to staging
+terraform init -backend-config="bucket=omnitrackr-terraform-state-v2"
+terraform apply                                    # uses terraform.tfvars
+
+# Deploy to production (same directory, different state + vars)
+terraform init -backend-config="bucket=omnitrackr-terraform-state-prod" -reconfigure
+terraform apply -var-file="terraform.tfvars.prod"
+```
+
+This avoids duplicating Terraform files across separate `staging/` and `production/` directories.
+All resource definitions (`.tf` files) are shared; only the variable values and state backends differ.

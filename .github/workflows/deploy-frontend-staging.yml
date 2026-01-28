@@ -12,7 +12,7 @@ on:
 env:
   GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID_STAGING }}
   GCP_REGION: us-central1
-  BUCKET_NAME: omnitrackr-staging-frontend
+  BUCKET_NAME: ${{ secrets.GCP_PROJECT_ID_STAGING }}-frontend
 
 jobs:
   deploy-frontend:

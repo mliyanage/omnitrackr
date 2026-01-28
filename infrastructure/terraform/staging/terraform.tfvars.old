@@ -1,7 +1,7 @@
 # Staging environment configuration
 # Update these values to match your GCP project
 
-project_id  = "omnitrackr-staging-v2"
+project_id  = "omnitrackr-staging"
 region      = "us-central1"
 environment = "staging"
 
