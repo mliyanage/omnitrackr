@@ -71,6 +71,7 @@ jobs:
             --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
+            --service-account=omnitrackr-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="NODE_ENV=staging,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},POLLING_WORKER_ENABLED=true,POLLING_BATCH_SIZE=50,SLA_MONITOR_ENABLED=false,FROM_EMAIL=${{ secrets.FROM_EMAIL }},FROM_NAME=${{ secrets.FROM_NAME }},APP_URL=https://staging.omnitrackr.dev" \
             --update-secrets="DB_PASSWORD=db-password:latest,MJ_APIKEY_PUBLIC=mj-apikey-public:latest,MJ_APIKEY_PRIVATE=mj-apikey-private:latest" \
             --memory=512Mi \
@@ -85,6 +86,7 @@ jobs:
             --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
+            --service-account=omnitrackr-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="NODE_ENV=staging,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=true,SLA_LOOKBACK_HOURS=24,FROM_EMAIL=${{ secrets.FROM_EMAIL }},FROM_NAME=${{ secrets.FROM_NAME }},APP_URL=https://staging.omnitrackr.dev" \
             --update-secrets="DB_PASSWORD=db-password:latest,MJ_APIKEY_PUBLIC=mj-apikey-public:latest,MJ_APIKEY_PRIVATE=mj-apikey-private:latest" \
             --memory=512Mi \
@@ -99,6 +101,7 @@ jobs:
             --image=${{ env.ARTIFACT_REGISTRY }}/${{ env.GCP_PROJECT_ID }}/omnitrackr/${{ env.SERVICE_NAME }}:${{ github.sha }} \
             --region=${{ env.GCP_REGION }} \
             --project=${{ env.GCP_PROJECT_ID }} \
+            --service-account=omnitrackr-staging@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --set-env-vars="NODE_ENV=staging,RUN_MODE=job,LOG_LEVEL=info,LOG_FORMAT=json,DB_HOST=${{ secrets.DB_HOST_STAGING }},DB_PORT=${{ secrets.DB_PORT_STAGING }},DB_NAME=${{ secrets.DB_NAME_STAGING }},DB_USER=${{ secrets.DB_USER_STAGING }},POLLING_WORKER_ENABLED=false,SLA_MONITOR_ENABLED=false,ESCALATION_WORKER_ENABLED=true,ESCALATION_CHECK_INTERVAL=300,ALERT_RETRY_DELAY_MINUTES=5,ALERT_MAX_RETRIES=3,FROM_EMAIL=${{ secrets.FROM_EMAIL }},FROM_NAME=${{ secrets.FROM_NAME }},APP_URL=https://staging.omnitrackr.dev" \
             --update-secrets="DB_PASSWORD=db-password:latest,MJ_APIKEY_PUBLIC=mj-apikey-public:latest,MJ_APIKEY_PRIVATE=mj-apikey-private:latest" \
             --memory=512Mi \
