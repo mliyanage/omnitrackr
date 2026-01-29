@@ -85,6 +85,43 @@ resource "google_cloud_run_v2_job" "polling_worker" {
           name  = "LOG_FORMAT"
           value = "json"
         }
+
+        # Email configuration
+        env {
+          name  = "FROM_EMAIL"
+          value = var.from_email
+        }
+
+        env {
+          name  = "FROM_NAME"
+          value = var.from_name
+        }
+
+        env {
+          name  = "APP_URL"
+          value = var.app_url
+        }
+
+        # Mailjet secrets (created manually, not managed by Terraform)
+        env {
+          name = "MJ_APIKEY_PUBLIC"
+          value_source {
+            secret_key_ref {
+              secret  = "mj-apikey-public"
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "MJ_APIKEY_PRIVATE"
+          value_source {
+            secret_key_ref {
+              secret  = "mj-apikey-private"
+              version = "latest"
+            }
+          }
+        }
       }
 
       timeout         = "600s" # 10 minutes max per job execution
@@ -189,6 +226,43 @@ resource "google_cloud_run_v2_job" "sla_monitor" {
         env {
           name  = "LOG_FORMAT"
           value = "json"
+        }
+
+        # Email configuration
+        env {
+          name  = "FROM_EMAIL"
+          value = var.from_email
+        }
+
+        env {
+          name  = "FROM_NAME"
+          value = var.from_name
+        }
+
+        env {
+          name  = "APP_URL"
+          value = var.app_url
+        }
+
+        # Mailjet secrets (created manually, not managed by Terraform)
+        env {
+          name = "MJ_APIKEY_PUBLIC"
+          value_source {
+            secret_key_ref {
+              secret  = "mj-apikey-public"
+              version = "latest"
+            }
+          }
+        }
+
+        env {
+          name = "MJ_APIKEY_PRIVATE"
+          value_source {
+            secret_key_ref {
+              secret  = "mj-apikey-private"
+              version = "latest"
+            }
+          }
         }
       }
 

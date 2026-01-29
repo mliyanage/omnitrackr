@@ -70,3 +70,27 @@ resource "google_secret_manager_secret_iam_member" "db_connection_access" {
   role      = "roles/secretmanager.secretAccessor"
   member    = "serviceAccount:${google_service_account.cloud_run.email}"
 }
+
+# IAM bindings for manually-created secrets (Mailjet, encryption key)
+# These secrets are created manually via gcloud, not managed by Terraform
+
+resource "google_secret_manager_secret_iam_member" "mj_apikey_public_access" {
+  project   = var.project_id
+  secret_id = "mj-apikey-public"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "mj_apikey_private_access" {
+  project   = var.project_id
+  secret_id = "mj-apikey-private"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}
+
+resource "google_secret_manager_secret_iam_member" "encryption_master_key_access" {
+  project   = var.project_id
+  secret_id = "encryption-master-key"
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.cloud_run.email}"
+}

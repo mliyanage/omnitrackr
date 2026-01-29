@@ -31,3 +31,11 @@ resource "google_project_iam_member" "cloud_run_metric_writer" {
   role    = "roles/monitoring.metricWriter"
   member  = "serviceAccount:${google_service_account.cloud_run.email}"
 }
+
+# Allow Cloud Scheduler to invoke Cloud Run Jobs
+# Required for the service account used in Cloud Scheduler oauth_token
+resource "google_project_iam_member" "cloud_run_invoker" {
+  project = var.project_id
+  role    = "roles/run.invoker"
+  member  = "serviceAccount:${google_service_account.cloud_run.email}"
+}

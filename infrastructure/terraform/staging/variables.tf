@@ -75,3 +75,22 @@ variable "worker_cpu" {
   type        = string
   default     = "0.5"
 }
+
+# Email configuration
+variable "from_email" {
+  description = "Email address for sending alerts"
+  type        = string
+  default     = "alerts@omnitrackr.dev"
+}
+
+variable "from_name" {
+  description = "Display name for alert emails"
+  type        = string
+  default     = "OmniTrackr"
+}
+
+variable "app_url" {
+  description = "Application URL for links in emails"
+  type        = string
+  default     = "https://staging.omnitrackr.dev"
+}
