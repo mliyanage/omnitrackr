@@ -133,8 +133,8 @@ export interface Schedule {
   execution_times?: string[] | null; // Array of HH:MM times
   timezone: string;
 
-  // Weekly settings
-  days_of_week?: DayOfWeek[] | null;
+  // Weekly settings (0=Sun, 1=Mon, ..., 6=Sat)
+  days_of_week?: number[] | null;
 
   // Monthly settings
   day_of_month?: number | null; // 1-31

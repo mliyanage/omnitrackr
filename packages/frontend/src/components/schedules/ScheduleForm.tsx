@@ -65,6 +65,12 @@ const DAYS_OF_WEEK: DayOfWeek[] = [
   'Saturday',
 ];
 
+// Convert day name to number (0=Sun, 1=Mon, ..., 6=Sat)
+const dayNameToNumber = (day: DayOfWeek): number => DAYS_OF_WEEK.indexOf(day);
+
+// Convert day number to name
+const dayNumberToName = (num: number): DayOfWeek => DAYS_OF_WEEK[num];
+
 const WEEK_OF_MONTH_OPTIONS: { value: WeekOfMonth; label: string }[] = [
   { value: 'first', label: '1st' },
   { value: 'second', label: '2nd' },
@@ -101,7 +107,8 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
           interval: schedule.interval,
           execution_times: schedule.execution_times || [],
           timezone: schedule.timezone,
-          days_of_week: schedule.days_of_week || [],
+          // Convert day numbers from database to day names for the form
+          days_of_week: schedule.days_of_week?.map((num) => dayNumberToName(num)) || [],
           day_of_month: schedule.day_of_month,
           week_of_month: schedule.week_of_month,
           valid_from: schedule.valid_from || undefined,
@@ -150,19 +157,24 @@ export function ScheduleForm({ schedule, onSuccess, onCancel }: ScheduleFormProp
   });
 
   const onSubmit = (data: ScheduleFormValues) => {
+    // Convert day names to numbers for the API (0=Sun, 1=Mon, ..., 6=Sat)
+    const daysAsNumbers = data.days_of_week?.map((day) => dayNameToNumber(day as DayOfWeek));
+
     // Clean up data based on frequency type
     const cleanedData = {
       ...data,
       execution_times: ['daily', 'weekly', 'monthly', 'yearly'].includes(data.frequency_type)
         ? data.execution_times
         : undefined,
-      days_of_week: data.frequency_type === 'weekly' ? data.days_of_week : undefined,
+      days_of_week: (data.frequency_type === 'weekly' || (data.frequency_type === 'monthly' && data.week_of_month))
+        ? daysAsNumbers
+        : undefined,
       day_of_month:
         data.frequency_type === 'monthly' && !data.week_of_month
           ? data.day_of_month
           : undefined,
       week_of_month:
-        data.frequency_type === 'monthly' && data.days_of_week && data.days_of_week.length > 0
+        data.frequency_type === 'monthly' && daysAsNumbers && daysAsNumbers.length > 0
           ? data.week_of_month
           : undefined,
       // Convert empty date strings to undefined
