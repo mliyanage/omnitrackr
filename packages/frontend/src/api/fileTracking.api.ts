@@ -83,7 +83,7 @@ export const getFileTracking = async (
  */
 export const getFileTrackingById = async (id: number): Promise<FileTracking> => {
   const response = await apiClient.get<ApiResponse<FileTracking>>(
-    `/api/file-tracking/${id}`
+    `/file-tracking/${id}`
   );
   if (!response.data.data) {
     throw new Error('File tracking record not found');
@@ -125,7 +125,7 @@ export const markFileAsArrived = async (
   }
 ): Promise<FileTracking> => {
   const response = await apiClient.post<ApiResponse<FileTracking>>(
-    `/api/file-tracking/${trackingId}/mark-arrived`,
+    `/file-tracking/${trackingId}/mark-arrived`,
     fileData
   );
   if (!response.data.data) {

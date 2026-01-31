@@ -51,7 +51,7 @@ export const updateRefData = async (
   data: Partial<CreateRefDataRequest>
 ): Promise<RefData> => {
   const response = await apiClient.patch<ApiResponse<RefData>>(
-    `/api/ref-data/code/${encodeURIComponent(code)}`,
+    `/ref-data/code/${encodeURIComponent(code)}`,
     data
   );
   if (!response.data.data) {
@@ -64,5 +64,5 @@ export const updateRefData = async (
  * Delete reference data entry by code
  */
 export const deleteRefData = async (code: string): Promise<void> => {
-  await apiClient.delete(`/api/ref-data/code/${encodeURIComponent(code)}`);
+  await apiClient.delete(`/ref-data/code/${encodeURIComponent(code)}`);
 };

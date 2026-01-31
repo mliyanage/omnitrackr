@@ -20,7 +20,7 @@ export const getFileSources = async (): Promise<FileSource[]> => {
  * Get a single file source by ID
  */
 export const getFileSourceById = async (id: string): Promise<FileSource> => {
-  const response = await apiClient.get<ApiResponse<FileSource>>(`/api/file-sources/${id}`);
+  const response = await apiClient.get<ApiResponse<FileSource>>(`/file-sources/${id}`);
   if (!response.data.data) {
     throw new Error('File source not found');
   }
@@ -51,7 +51,7 @@ export const updateFileSource = async (
   data: UpdateFileSourceRequest
 ): Promise<FileSource> => {
   const response = await apiClient.put<ApiResponse<FileSource>>(
-    `/api/file-sources/${id}`,
+    `/file-sources/${id}`,
     data
   );
   if (!response.data.data) {
@@ -64,7 +64,7 @@ export const updateFileSource = async (
  * Delete a file source
  */
 export const deleteFileSource = async (id: string): Promise<void> => {
-  await apiClient.delete(`/api/file-sources/${id}`);
+  await apiClient.delete(`/file-sources/${id}`);
 };
 
 /**
@@ -72,7 +72,7 @@ export const deleteFileSource = async (id: string): Promise<void> => {
  */
 export const toggleFileSource = async (id: string): Promise<FileSource> => {
   const response = await apiClient.patch<ApiResponse<FileSource>>(
-    `/api/file-sources/${id}/toggle`
+    `/file-sources/${id}/toggle`
   );
   if (!response.data.data) {
     throw new Error('Failed to toggle file source');

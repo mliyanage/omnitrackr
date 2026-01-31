@@ -21,7 +21,7 @@ export const getConnections = async (): Promise<SourceConnection[]> => {
  * Get a single connection by ID
  */
 export const getConnectionById = async (id: number): Promise<SourceConnection> => {
-  const response = await apiClient.get<ApiResponse<SourceConnection>>(`/api/source-connections/${id}`);
+  const response = await apiClient.get<ApiResponse<SourceConnection>>(`/source-connections/${id}`);
   if (!response.data.data) {
     throw new Error('Connection not found');
   }
@@ -52,7 +52,7 @@ export const updateConnection = async (
   data: UpdateConnectionRequest
 ): Promise<SourceConnection> => {
   const response = await apiClient.patch<ApiResponse<SourceConnection>>(
-    `/api/source-connections/${id}`,
+    `/source-connections/${id}`,
     data
   );
   if (!response.data.data) {
@@ -65,7 +65,7 @@ export const updateConnection = async (
  * Delete a connection
  */
 export const deleteConnection = async (id: number): Promise<void> => {
-  await apiClient.delete(`/api/source-connections/${id}`);
+  await apiClient.delete(`/source-connections/${id}`);
 };
 
 /**
@@ -89,7 +89,7 @@ export const testConnection = async (
  */
 export const getConnectionsByType = async (type: string): Promise<SourceConnection[]> => {
   const response = await apiClient.get<ApiResponse<SourceConnection[]>>(
-    `/api/source-connections?type=${type}`
+    `/source-connections?type=${type}`
   );
   return response.data.data || [];
 };
@@ -99,7 +99,7 @@ export const getConnectionsByType = async (type: string): Promise<SourceConnecti
  */
 export const checkConnectionHealth = async (id: number): Promise<ConnectionHealthCheckResult> => {
   const response = await apiClient.post<ApiResponse<ConnectionHealthCheckResult>>(
-    `/api/source-connections/${id}/health-check`
+    `/source-connections/${id}/health-check`
   );
   if (!response.data.data) {
     throw new Error('Failed to check connection health');

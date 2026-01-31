@@ -41,7 +41,7 @@ export const listDepartments = async (): Promise<ApiResponse<Department[]>> => {
  * Get a specific department by ID
  */
 export const getDepartment = async (id: number): Promise<ApiResponse<Department>> => {
-  const response = await apiClient.get<ApiResponse<Department>>(`/api/departments/${id}`);
+  const response = await apiClient.get<ApiResponse<Department>>(`/departments/${id}`);
   return response.data;
 };
 
@@ -65,7 +65,7 @@ export const updateDepartment = async (
   data: UpdateDepartmentRequest
 ): Promise<ApiResponse<Department>> => {
   const response = await apiClient.patch<ApiResponse<Department>>(
-    `/api/departments/${id}`,
+    `/departments/${id}`,
     data
   );
   return response.data;
@@ -76,6 +76,6 @@ export const updateDepartment = async (
  * Only accessible by owners
  */
 export const deleteDepartment = async (id: number): Promise<ApiResponse<void>> => {
-  const response = await apiClient.delete<ApiResponse<void>>(`/api/departments/${id}`);
+  const response = await apiClient.delete<ApiResponse<void>>(`/departments/${id}`);
   return response.data;
 };

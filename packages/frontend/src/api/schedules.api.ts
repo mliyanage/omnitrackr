@@ -20,7 +20,7 @@ export const getSchedules = async (): Promise<Schedule[]> => {
  * Get a single schedule by ID
  */
 export const getScheduleById = async (id: number): Promise<Schedule> => {
-  const response = await apiClient.get<ApiResponse<Schedule>>(`/api/schedules/${id}`);
+  const response = await apiClient.get<ApiResponse<Schedule>>(`/schedules/${id}`);
   if (!response.data.data) {
     throw new Error('Schedule not found');
   }
@@ -51,7 +51,7 @@ export const updateSchedule = async (
   data: UpdateScheduleRequest
 ): Promise<Schedule> => {
   const response = await apiClient.patch<ApiResponse<Schedule>>(
-    `/api/schedules/${id}`,
+    `/schedules/${id}`,
     data
   );
   if (!response.data.data) {
@@ -64,7 +64,7 @@ export const updateSchedule = async (
  * Delete a schedule
  */
 export const deleteSchedule = async (id: number): Promise<void> => {
-  await apiClient.delete(`/api/schedules/${id}`);
+  await apiClient.delete(`/schedules/${id}`);
 };
 
 /**
@@ -72,7 +72,7 @@ export const deleteSchedule = async (id: number): Promise<void> => {
  */
 export const calculateNextRunTime = async (id: number): Promise<{ nextRunTime: string | null }> => {
   const response = await apiClient.get<ApiResponse<{ nextRunTime: string | null }>>(
-    `/api/schedules/${id}/next-run`
+    `/schedules/${id}/next-run`
   );
   if (!response.data.data) {
     throw new Error('Failed to calculate next run time');
@@ -89,7 +89,7 @@ export const calculateNextRunTime = async (id: number): Promise<{ nextRunTime: s
  */
 export const getScheduleExclusions = async (scheduleId: number): Promise<ScheduleExclusion[]> => {
   const response = await apiClient.get<ApiResponse<ScheduleExclusion[]>>(
-    `/api/schedules/${scheduleId}/exclusions`
+    `/schedules/${scheduleId}/exclusions`
   );
   return response.data.data || [];
 };
@@ -101,7 +101,7 @@ export const createScheduleExclusion = async (
   data: CreateScheduleExclusionRequest
 ): Promise<ScheduleExclusion> => {
   const response = await apiClient.post<ApiResponse<ScheduleExclusion>>(
-    `/api/schedules/${data.schedule_id}/exclusions`,
+    `/schedules/${data.schedule_id}/exclusions`,
     data
   );
   if (!response.data.data) {
@@ -117,5 +117,5 @@ export const deleteScheduleExclusion = async (
   scheduleId: number,
   exclusionId: number
 ): Promise<void> => {
-  await apiClient.delete(`/api/schedules/${scheduleId}/exclusions/${exclusionId}`);
+  await apiClient.delete(`/schedules/${scheduleId}/exclusions/${exclusionId}`);
 };
