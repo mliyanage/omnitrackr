@@ -60,6 +60,12 @@ Thumbs.db
 *.sqlite
 *.sqlite3
 
+# Database backups (may contain secrets!)
+*.dump
+*.sql
+*-backup-*.dump
+*-backup-*.sql
+
 # Temporary files
 tmp/
 temp/
